@@ -1,0 +1,58 @@
+:host {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem 2rem;
+}
+
+h2 {
+  color: var(--bt-text-strong);
+  margin: 2rem 0 1rem;
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.recipe-card {
+  text-decoration: none;
+}
+
+mat-card {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bt-surface-1);
+  border: 1px solid var(--bt-outline);
+}
+
+.thumbnail {
+  aspect-ratio: 4 / 3;
+}
+
+h3 {
+  color: var(--bt-text-default);
+  margin: 0;
+  font-size: 1rem;
+}
+
+.empty-state {
+  text-align: center;
+  margin-top: 4rem;
+}
+
+.empty-state h1 {
+  color: var(--bt-text-strong);
+}
+
+.empty-state p {
+  color: var(--bt-text-muted);
+  margin-bottom: 2rem;
+}
+
+.page-loading {
+  display: flex;
+  justify-content: center;
+  margin: 150px auto;
+}

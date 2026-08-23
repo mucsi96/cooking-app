@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 2rem 3rem;
+}
+
+.hero {
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--bt-outline);
+  margin-bottom: 1.5rem;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+h1,
+h2 {
+  color: var(--bt-text-strong);
+}
+
+.description {
+  color: var(--bt-text-muted);
+  line-height: 1.6;
+}
+
+.servings {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+.servings-value {
+  color: var(--bt-text-default);
+  font-size: 1.1rem;
+  min-width: 5.5rem;
+  text-align: center;
+}
+
+.ingredients,
+.steps {
+  color: var(--bt-text-default);
+  line-height: 1.8;
+  padding-left: 1.5rem;
+}
+
+.amount {
+  font-weight: 500;
+  margin-right: 0.35rem;
+}
+
+.hint {
+  color: var(--bt-text-muted);
+}
+
+.candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.candidate {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--bt-outline);
+  background: var(--bt-surface-1);
+  padding: 0;
+  cursor: pointer;
+}
+
+.candidate.selected {
+  border-color: var(--bt-primary, #4caf50);
+}
+
+.candidate-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.selected-icon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--bt-primary, #4caf50);
+}
+
+.page-loading {
+  display: flex;
+  justify-content: center;
+  margin: 150px auto;
+}

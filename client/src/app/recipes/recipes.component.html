@@ -1,0 +1,31 @@
+@if (recipes.isLoading() && !recipes.value()) {
+<bt-bar-loader class="page-loading" label="Receptek betöltése" />
+} @else { @if (categories().length === 0) {
+<div class="empty-state">
+  <h1>Még nincs egyetlen recept sem</h1>
+  <p>Kezdd az első recept importálásával!</p>
+  <a mat-flat-button routerLink="/importalas">Recept importálása</a>
+</div>
+} @for (group of categories(); track group.category) {
+<section>
+  <h2>{{ group.category }}</h2>
+  <div class="recipe-grid">
+    @for (recipe of group.recipes; track recipe.id) {
+    <a
+      class="recipe-card"
+      [routerLink]="['/recept', recipe.id]"
+      [attr.aria-label]="recipe.title"
+    >
+      <mat-card>
+        <div class="thumbnail">
+          <app-recipe-image [imageId]="recipe.imageId" [alt]="recipe.title" />
+        </div>
+        <mat-card-content>
+          <h3>{{ recipe.title }}</h3>
+        </mat-card-content>
+      </mat-card>
+    </a>
+    }
+  </div>
+</section>
+} }

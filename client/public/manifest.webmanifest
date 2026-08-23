@@ -1,7 +1,7 @@
 {
   "name": "Cooking App",
   "short_name": "Cooking",
-  "description": "Reference application demonstrating authentication, AI integration and deployment patterns.",
+  "description": "Recept gyűjtemény AI-alapú importálással.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

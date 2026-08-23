@@ -1,0 +1,99 @@
+@if (recipe.isLoading() && !recipe.value()) {
+<bt-bar-loader class="page-loading" label="Recept betöltése" />
+} @else if (recipe.value(); as recipeValue) {
+<article>
+  <div class="hero">
+    <app-recipe-image [imageId]="recipeValue.imageId" [alt]="recipeValue.title" />
+  </div>
+
+  <div class="title-row">
+    <h1>{{ recipeValue.title }}</h1>
+    <mat-chip-set aria-label="Kategória">
+      <mat-chip>{{ recipeValue.category }}</mat-chip>
+    </mat-chip-set>
+  </div>
+
+  <p class="description">{{ recipeValue.description }}</p>
+
+  <section class="servings" aria-label="Adagok">
+    <button
+      mat-icon-button
+      aria-label="Adagok csökkentése"
+      [disabled]="servings() <= 1"
+      (click)="decreaseServings()"
+    >
+      <mat-icon>remove</mat-icon>
+    </button>
+    <span class="servings-value">{{ servings() }} adag</span>
+    <button
+      mat-icon-button
+      aria-label="Adagok növelése"
+      (click)="increaseServings()"
+    >
+      <mat-icon>add</mat-icon>
+    </button>
+  </section>
+
+  <section aria-label="Hozzávalók">
+    <h2>Hozzávalók</h2>
+    <ul class="ingredients">
+      @for (ingredient of scaledIngredients(); track $index) {
+      <li>
+        @if (ingredient.formattedAmount) {
+        <span class="amount"
+          >{{ ingredient.formattedAmount }} {{ ingredient.unit }}</span
+        >
+        }
+        <span>{{ ingredient.name }}</span>
+      </li>
+      }
+    </ul>
+  </section>
+
+  <section aria-label="Elkészítés">
+    <h2>Elkészítés</h2>
+    <ol class="steps">
+      @for (step of recipeValue.steps; track $index) {
+      <li>{{ step }}</li>
+      }
+    </ol>
+  </section>
+
+  <section aria-label="Borítókép">
+    <h2>Borítókép</h2>
+    <p class="hint">
+      Válaszd ki a kedvenc AI-generált képedet, vagy kérj újakat.
+    </p>
+    @if (candidates.value(); as candidateList) {
+    <div class="candidates">
+      @for (candidate of candidateList; track candidate.id) {
+      @if (candidate.status === 'PENDING') {
+      <div class="candidate candidate-pending" aria-label="Kép generálása folyamatban">
+        <bt-bar-loader label="Kép generálása" />
+      </div>
+      } @else if (candidate.status === 'COMPLETED') {
+      <button
+        class="candidate"
+        [class.selected]="candidate.id === recipeValue.imageId"
+        [attr.aria-label]="'Kép kiválasztása ' + candidate.id"
+        [attr.aria-pressed]="candidate.id === recipeValue.imageId"
+        (click)="selectImage(candidate.id)"
+      >
+        <app-recipe-image [imageId]="candidate.id" alt="Generált képjelölt" />
+        @if (candidate.id === recipeValue.imageId) {
+        <mat-icon class="selected-icon" aria-hidden="true">check_circle</mat-icon>
+        }
+      </button>
+      } }
+    </div>
+    }
+    <button
+      mat-stroked-button
+      [disabled]="generating()"
+      (click)="generateImages()"
+    >
+      Új képek generálása
+    </button>
+  </section>
+</article>
+}

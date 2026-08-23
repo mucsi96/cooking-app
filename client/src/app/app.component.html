@@ -1,7 +1,8 @@
 <mat-toolbar class="header">
   <nav>
-    <a mat-button href="/">Cooking App</a>
+    <a mat-button href="/">Receptek</a>
     @if(isAuthenticated()) {
+    <a mat-button routerLink="/importalas">Importálás</a>
     <div class="header-right">
       <app-header></app-header>
     </div>

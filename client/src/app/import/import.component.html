@@ -1,0 +1,33 @@
+<h1>Recept importálása</h1>
+<p class="hint">
+  Illeszd be a recept szövegét bármilyen nyelven (angol, német, magyar...).
+  A mesterséges intelligencia magyar nyelvű, strukturált receptet készít belőle.
+</p>
+
+<mat-form-field appearance="outline" class="text-field">
+  <mat-label>Recept szövege</mat-label>
+  <textarea
+    matInput
+    rows="14"
+    [ngModel]="text()"
+    (ngModelChange)="text.set($event)"
+    [disabled]="importing()"
+    placeholder="Illeszd be ide a recept szövegét..."
+  ></textarea>
+</mat-form-field>
+
+<div class="actions">
+  <button
+    mat-flat-button
+    [disabled]="!text().trim() || importing()"
+    (click)="importRecipe()"
+  >
+    Importálás
+  </button>
+  @if (importing()) {
+  <div class="importing" role="status">
+    <mat-spinner diameter="24" />
+    <span>Recept feldolgozása...</span>
+  </div>
+  }
+</div>
