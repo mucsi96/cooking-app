@@ -1,38 +1,48 @@
 # Cooking App
 
-Reference application for all future projects. Based on patterns from [learn-language](https://github.com/mucsi96/learn-language).
+Recipe collection app with AI-powered import. All recipes are stored and
+displayed in Hungarian; the imported text can be in any language.
 
-## Patterns Covered
+Based on [skeleton-app](https://github.com/mucsi96/skeleton-app), with the
+AI image generation approach of
+[learn-language](https://github.com/mucsi96/learn-language).
 
-- **CI/CD Pipeline** - GitHub Actions with E2E testing and image publishing
-- **Deployment** - Docker multi-stage builds with Traefik reverse proxy
-- **Client** - Angular 21 with Material UI dark theme
-- **Server** - Spring Boot 4 with Java 21
+## Features
+
+- **Category overview** - Recipes grouped by Hungarian categories (Leves,
+  Főétel, Desszert, ...) with AI-generated thumbnails
+- **Recipe details** - Title, description, ingredients, steps and number of
+  servings; adjusting the servings rescales the ingredient amounts
+- **AI import** - Paste recipe text in any language (English, German,
+  Hungarian, ...); Anthropic Claude extracts a structured recipe and
+  translates it to Hungarian before it is persisted
+- **API import** - The same endpoint accepts plain text over the API
+  (`POST /api/recipes/import` with `{"text": "..."}`), which drives the
+  email-based import pipeline
+- **Thumbnail candidates** - Several images are generated right away
+  (Claude writes the food-photo scene description, the OpenAI image API
+  renders it, ffmpeg resizes to webp); the user picks their favorite
+
+## Stack
+
+- **Client** - Angular 22 with Material UI dark theme (Hungarian UI)
+- **Server** - Spring Boot 4 with Java 21, Spring AI (Anthropic), openai-java
+- **Database** - PostgreSQL with Spring Data JPA and Liquibase
 - **Authentication** - Azure AD (MSAL) with conditional mock auth for testing
 - **Configuration** - Azure Key Vault + Spring profiles (prod/local/test)
-- **AI Integration** - Anthropic Claude via Spring AI
-- **AI Mocking** - Express mock server for testing
-- **Database** - PostgreSQL with Spring Data JPA
+- **AI Mocking** - Express mock servers for the Anthropic and OpenAI APIs
 - **Testing** - Playwright E2E tests
-- **UI Components** - Material UI with custom dark theme
-- **Fetching** - Angular resource API with HttpClient
-
-## AI Pattern Sync
-
-This repository publishes a diff of the last 2 weeks of changes to GitHub Pages. AI agents on other projects can fetch this diff to stay in sync with the latest patterns from cooking-app.
-
-- **Commits**: `https://mucsi96.github.io/cooking-app/commits.txt`
-- **Diff**: `https://mucsi96.github.io/cooking-app/diff.patch` (or `https://mucsi96.github.io/cooking-app/diff.txt` to view inline in browser)
-
-The pages build runs on every push to main, weekly on Monday, and on manual dispatch.
+- **Deployment** - Docker multi-stage builds with Traefik reverse proxy
 
 ## Port Mapping
 
-All host-exposed ports use the **xx50–xx59** range for their last two digits to avoid clashes with other local projects.
+All host-exposed ports use the **xx60–xx69** range for their last two digits
+to avoid clashes with other local projects.
 
 | Port | Service              | Context                             |
 |------|----------------------|-------------------------------------|
 | 3060 | Mock Anthropic API   | Test pod                            |
+| 3061 | Mock OpenAI API      | Test pod                            |
 | 4260 | Angular dev server   | Local dev                           |
 | 5460 | PostgreSQL           | Dev database                        |
 | 5461 | PostgreSQL           | Test pod                            |
@@ -64,12 +74,27 @@ scripts/install_dependencies.sh
 cannot provide). On WSL, enable `systemd=true` in `/etc/wsl.conf` and install it
 via your distro, e.g. `apt install podman`.
 
+**ffmpeg** is required by the server for webp thumbnail conversion (installed
+in the server Docker image; install it locally for the local profile).
+
 ## Quick Start
 
 ```bash
 # Start test stack
-scripts/compose_up.sh
+scripts/pod_up.sh
 
 # Run E2E tests
 cd test && npm test
 ```
+
+## Production Secrets
+
+Azure Key Vault must provide, in addition to the skeleton-app secrets:
+
+- `claude-api-key` - Anthropic API key (recipe extraction and image scene descriptions)
+- `openai-api-key` - OpenAI API key (thumbnail generation)
+
+The server also needs a `STORAGE_DIRECTORY` environment variable pointing at a
+persistent volume for the generated webp images.
+
+See @AGENTS.md

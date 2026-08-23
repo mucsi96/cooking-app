@@ -1,22 +1,31 @@
 import { test as base, TestInfo } from '@playwright/test';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { cleanupDbRecords, insertGreeting } from './utils';
+import { cleanupDb } from './utils';
+
+const MOCK_SERVERS = ['http://localhost:3060', 'http://localhost:3061'];
 
 export const test = base.extend({
   page: async ({ page }, use, testInfo: TestInfo) => {
-    await cleanupDbRecords();
-    await insertGreeting('World', 'Welcome to the cooking app!');
+    await cleanupDb();
 
-    // Reset mock AI server
-    try {
-      await fetch('http://localhost:3060/reset', {
-        method: 'POST',
-        signal: AbortSignal.timeout(5000),
-      });
-    } catch (error) {
-      console.warn('Warning: Could not reset mock AI server:', error);
-    }
+    // Reset mock AI servers
+    await Promise.all(
+      MOCK_SERVERS.map(async (server) => {
+        try {
+          await fetch(`${server}/reset`, {
+            method: 'POST',
+            signal: AbortSignal.timeout(5000),
+          });
+        } catch (error) {
+          console.warn(`Warning: Could not reset mock AI server ${server}:`, error);
+        }
+      })
+    );
+
+    // Keep tests hermetic: never wait on the external font CDN
+    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
+    await page.route('https://fonts.gstatic.com/**', (route) => route.abort());
 
     // Capture browser console logs
     const consoleLogs: string[] = [];

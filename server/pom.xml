@@ -105,6 +105,12 @@
       <artifactId>openai-java-client-okhttp</artifactId>
       <version>4.43.0</version>
     </dependency>
+    <!-- openai-java pulls the 4.x line; Spring AI's structured output needs 5.x -->
+    <dependency>
+      <groupId>com.github.victools</groupId>
+      <artifactId>jsonschema-module-jackson</artifactId>
+      <version>5.0.0</version>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>

@@ -62,12 +62,18 @@ export class AuthService {
 
   login(): void {
     this.authorityError.set(null);
+    // Capture the deep link before the router resets the URL on a cancelled
+    // navigation - the redirect_uri itself is always the origin, so the
+    // path travels through the authority roundtrip in `state`.
+    const returnTo = window.location.pathname + window.location.search;
     console.info(
       '[auth] Full re-authentication started (redirect to authority)'
     );
     // Await pending logs reaching the backend before navigating away.
     flushFaro().finally(() => {
-      this.userManager.signinRedirect().catch((error) =>
+      this.userManager
+        .signinRedirect({ state: returnTo })
+        .catch((error) =>
         console.error(
           '[auth] signinRedirect failed',
           JSON.stringify({ error: errorMessage(error) })
@@ -229,9 +235,13 @@ export class AuthService {
       url.searchParams.has('code') || url.searchParams.has('error');
 
     if (this.returnedFromAuthority) {
+      let returnTo = url.pathname;
       try {
         const user = await this.userManager.signinRedirectCallback();
         this.user.set(user);
+        if (typeof user.state === 'string' && user.state.startsWith('/')) {
+          returnTo = user.state;
+        }
         console.info(
           '[auth] Cold start - redirect callback processed',
           JSON.stringify({ ...describeUser(user), storage: snapshotStorageKeys() })
@@ -250,8 +260,8 @@ export class AuthService {
           JSON.stringify({ error: errorMessage(error), description })
         );
       }
-      // Strip the auth params so refreshes and deep links stay clean.
-      history.replaceState(history.state, '', url.origin + url.pathname);
+      // Strip the auth params and restore the deep link carried in `state`.
+      history.replaceState(history.state, '', url.origin + returnTo);
       return;
     }
 

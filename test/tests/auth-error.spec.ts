@@ -32,6 +32,6 @@ test('recovers with a user-initiated retry after an authority error', async ({
 
   await page.getByRole('button', { name: 'Try again' }).click();
 
-  await expect(page).toHaveTitle('Hello');
+  await expect(page).toHaveTitle('Receptek');
   await expect(page.getByRole('button', { name: 'TU' })).toBeVisible();
 });
