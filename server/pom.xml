@@ -100,6 +100,11 @@
       <groupId>org.springframework.ai</groupId>
       <artifactId>spring-ai-starter-model-anthropic</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.openai</groupId>
+      <artifactId>openai-java-client-okhttp</artifactId>
+      <version>4.43.0</version>
+    </dependency>
   </dependencies>
   <dependencyManagement>
     <dependencies>

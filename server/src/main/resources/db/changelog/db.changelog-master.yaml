@@ -1,37 +1,136 @@
 databaseChangeLog:
   - changeSet:
-      id: 1-create-greetings-table
+      id: 1-create-recipes-table
       author: mucsi96
       changes:
         - createTable:
-            tableName: greetings
+            tableName: recipes
             columns:
               - column:
                   name: id
-                  type: bigint
-                  autoIncrement: true
+                  type: uuid
                   constraints:
                     primaryKey: true
               - column:
-                  name: name
+                  name: title
                   type: text
                   constraints:
                     nullable: false
               - column:
-                  name: message
+                  name: description
                   type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: servings
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: image_id
+                  type: uuid
+              - column:
+                  name: created_at
+                  type: timestamptz
                   constraints:
                     nullable: false
   - changeSet:
-      id: 2-seed-initial-greeting
+      id: 2-create-recipe-ingredients-table
       author: mucsi96
       changes:
-        - insert:
-            tableName: greetings
+        - createTable:
+            tableName: recipe_ingredients
             columns:
               - column:
-                  name: name
-                  value: Igor
+                  name: recipe_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_recipe_ingredients_recipe
+                    references: recipes(id)
+                    deleteCascade: true
               - column:
-                  name: message
-                  value: Welcome to the cooking app!
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: numeric(10, 2)
+              - column:
+                  name: unit
+                  type: text
+        - addPrimaryKey:
+            tableName: recipe_ingredients
+            columnNames: recipe_id, position
+  - changeSet:
+      id: 3-create-recipe-steps-table
+      author: mucsi96
+      changes:
+        - createTable:
+            tableName: recipe_steps
+            columns:
+              - column:
+                  name: recipe_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_recipe_steps_recipe
+                    references: recipes(id)
+                    deleteCascade: true
+              - column:
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: step
+                  type: text
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: recipe_steps
+            columnNames: recipe_id, position
+  - changeSet:
+      id: 4-create-image-generation-jobs-table
+      author: mucsi96
+      changes:
+        - createTable:
+            tableName: image_generation_jobs
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: recipe_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_image_generation_jobs_recipe
+                    references: recipes(id)
+                    deleteCascade: true
+              - column:
+                  name: status
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: error
+                  type: text
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false

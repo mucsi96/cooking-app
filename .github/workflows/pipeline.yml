@@ -51,11 +51,20 @@ jobs:
           tags: localhost/cooking-app-mock-anthropic:test
           cache-from: type=gha,scope=mock-anthropic
           cache-to: type=gha,mode=max,scope=mock-anthropic
+      - name: Build mock openai image
+        uses: docker/build-push-action@v6
+        with:
+          context: mock_openai_server
+          load: true
+          tags: localhost/cooking-app-mock-openai:test
+          cache-from: type=gha,scope=mock-openai
+          cache-to: type=gha,mode=max,scope=mock-openai
       - name: Load images into Podman
         run: |
           docker save localhost/cooking-app-server:test | podman load
           docker save localhost/cooking-app-client:test | podman load
           docker save localhost/cooking-app-mock-anthropic:test | podman load
+          docker save localhost/cooking-app-mock-openai:test | podman load
       - name: Setup test environment and start pod
         env:
           SKIP_BUILD: "1"

@@ -16,7 +16,12 @@ export function messagesMatch(
   systemPattern: string | null,
   userPattern: string
 ): boolean {
-  if (systemPattern && (!request.system || !request.system.includes(systemPattern))) {
+  const system =
+    typeof request.system === 'string'
+      ? request.system
+      : (request.system ?? []).map((block) => block.text).join('\n');
+
+  if (systemPattern && !system.includes(systemPattern)) {
     return false;
   }
 

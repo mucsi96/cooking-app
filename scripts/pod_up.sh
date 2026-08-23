@@ -12,6 +12,7 @@ else
   podman build -t localhost/cooking-app-server:test "$PROJECT_DIR/server" &
   podman build -t localhost/cooking-app-client:test "$PROJECT_DIR/client" &
   podman build -t localhost/cooking-app-mock-anthropic:test "$PROJECT_DIR/mock_anthropic_server" &
+  podman build -t localhost/cooking-app-mock-openai:test "$PROJECT_DIR/mock_openai_server" &
   wait
 fi
 

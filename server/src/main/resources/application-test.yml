@@ -15,3 +15,8 @@ spring:
     anthropic:
       api-key: ${ANTHROPIC_API_KEY}
       base-url: ${ANTHROPIC_BASE_URL}
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL}
+storage:
+  directory: ${STORAGE_DIRECTORY:./storage}

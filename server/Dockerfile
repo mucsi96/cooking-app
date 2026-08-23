@@ -22,7 +22,7 @@ VOLUME /tmp
 ARG DEPENDENCY=/workspace/target/dependency
 ARG SPRING_PROFILES_ACTIVE=prod
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Copy application layers
 COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib

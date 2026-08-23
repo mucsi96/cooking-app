@@ -60,6 +60,22 @@ spec:
         periodSeconds: 2
         failureThreshold: 5
 
+    - name: mock-openai
+      image: localhost/cooking-app-mock-openai:test
+      ports:
+        - containerPort: 3061
+          hostPort: 3061
+      env:
+        - name: PORT
+          value: "3061"
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 3061
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        failureThreshold: 5
+
     - name: mock-oauth2
       image: docker.io/mucsi96/mock-oidc-provider:latest
       ports:
@@ -79,9 +95,9 @@ spec:
         - name: PREFERRED_USERNAME
           value: test-user@example.com
         - name: ROLES
-          value: GreetingReader
+          value: RecipeReader,RecipeCreator
         - name: SCP
-          value: readGreetings createGreeting
+          value: readRecipes createRecipe
         - name: AUD
           value: mock-api-client-id
       livenessProbe:
@@ -111,8 +127,17 @@ spec:
           value: mock-anthropic-key
         - name: ANTHROPIC_BASE_URL
           value: http://localhost:3060
+        - name: OPENAI_API_KEY
+          value: mock-openai-key
+        - name: OPENAI_BASE_URL
+          value: http://localhost:3061
+        - name: STORAGE_DIRECTORY
+          value: /storage
         - name: MOCK_OAUTH2_SERVER_URI
           value: http://localhost:8060
+      volumeMounts:
+        - name: storage
+          mountPath: /storage
       livenessProbe:
         httpGet:
           path: /actuator/health/readiness
@@ -132,6 +157,8 @@ spec:
         failureThreshold: 10
 
   volumes:
+    - name: storage
+      emptyDir: {}
     - name: traefik-config
       hostPath:
         path: test/traefik.yaml

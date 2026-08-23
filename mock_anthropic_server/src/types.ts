@@ -22,6 +22,6 @@ export interface ClaudeMessage {
 export interface ClaudeRequest {
   model: string;
   max_tokens: number;
-  system?: string;
+  system?: string | ClaudeTextBlock[];
   messages: ClaudeMessage[];
 }

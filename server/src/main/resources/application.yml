@@ -35,6 +35,12 @@ spring:
       chat:
         options:
           model: claude-sonnet-4-6
+    openai:
+      api-key: ${openai-api-key}
+      image:
+        model: gpt-image-1
+storage:
+  directory: ${STORAGE_DIRECTORY}
 server:
   forward-headers-strategy: framework
   servlet:
