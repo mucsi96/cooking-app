@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cooking-app-test
+spec:
+  containers:
+    - name: traefik
+      image: docker.io/library/traefik:v3.6
+      ports:
+        - containerPort: 80
+          hostPort: 8160
+        - containerPort: 8081
+          hostPort: 8161
+      volumeMounts:
+        - name: traefik-config
+          mountPath: /etc/traefik/traefik.yaml
+          readOnly: true
+        - name: traefik-routes
+          mountPath: /etc/traefik/routes.yaml
+          readOnly: true
+      livenessProbe:
+        exec:
+          command: ["traefik", "healthcheck", "--ping"]
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        failureThreshold: 5
+
+    - name: db
+      image: docker.io/library/postgres:17.5-bullseye
+      ports:
+        - containerPort: 5432
+          hostPort: 5461
+      env:
+        - name: POSTGRES_DB
+          value: test
+        - name: POSTGRES_PASSWORD
+          value: postgres
+        - name: POSTGRES_USER
+          value: postgres
+      livenessProbe:
+        exec:
+          command: ["pg_isready", "-U", "postgres"]
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        failureThreshold: 5
+
+    - name: mock-anthropic
+      image: localhost/cooking-app-mock-anthropic:test
+      ports:
+        - containerPort: 3060
+          hostPort: 3060
+      env:
+        - name: PORT
+          value: "3060"
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 3060
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        failureThreshold: 5
+
+    - name: mock-oauth2
+      image: docker.io/mucsi96/mock-oidc-provider:latest
+      ports:
+        - containerPort: 8060
+          hostPort: 8060
+      env:
+        - name: PORT
+          value: "8060"
+        - name: ISSUER_ID
+          value: default
+        - name: SUB
+          value: test-user
+        - name: OID
+          value: 00000000-0000-0000-0000-000000000001
+        - name: NAME
+          value: Test User
+        - name: PREFERRED_USERNAME
+          value: test-user@example.com
+        - name: ROLES
+          value: GreetingReader
+        - name: SCP
+          value: readGreetings createGreeting
+        - name: AUD
+          value: mock-api-client-id
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8060
+        initialDelaySeconds: 2
+        periodSeconds: 2
+        failureThreshold: 5
+
+    - name: server
+      image: localhost/cooking-app-server:test
+      env:
+        - name: SERVER_PORT
+          value: "8064"
+        - name: SPRING_ACTUATOR_PORT
+          value: "8162"
+        - name: SPRING_PROFILES_ACTIVE
+          value: test
+        - name: DB_URL
+          value: jdbc:postgresql://localhost:5432/test
+        - name: DB_USERNAME
+          value: postgres
+        - name: DB_PASSWORD
+          value: postgres
+        - name: ANTHROPIC_API_KEY
+          value: mock-anthropic-key
+        - name: ANTHROPIC_BASE_URL
+          value: http://localhost:3060
+        - name: MOCK_OAUTH2_SERVER_URI
+          value: http://localhost:8060
+      livenessProbe:
+        httpGet:
+          path: /actuator/health/readiness
+          port: 8162
+        initialDelaySeconds: 16
+        periodSeconds: 2
+        failureThreshold: 10
+
+    - name: client
+      image: localhost/cooking-app-client:test
+      livenessProbe:
+        httpGet:
+          path: /
+          port: 8000
+        initialDelaySeconds: 5
+        periodSeconds: 2
+        failureThreshold: 10
+
+  volumes:
+    - name: traefik-config
+      hostPath:
+        path: test/traefik.yaml
+        type: File
+    - name: traefik-routes
+      hostPath:
+        path: test/traefik-routes.yaml
+        type: File
