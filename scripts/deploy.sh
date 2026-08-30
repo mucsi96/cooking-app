@@ -44,6 +44,13 @@ helm upgrade $SERVER_RELEASE_NAME mucsi96/spring-app \
     --set serviceAccountName=cooking-api-workload-identity \
     --set env.AZURE_KEYVAULT_ENDPOINT=$AZURE_KEYVAULT_ENDPOINT \
     --set env.CLIENT_APP_NAME=$CLIENT_RELEASE_NAME \
+    --set env.STORAGE_DIRECTORY=/app/storage \
+    --set persistentVolumeClaims[0].name=cooking-pvc \
+    --set persistentVolumeClaims[0].accessMode=ReadWriteOnce \
+    --set persistentVolumeClaims[0].volumeName=cooking-app \
+    --set persistentVolumeClaims[0].mountPath=/app/storage \
+    --set persistentVolumeClaims[0].storageClassName="" \
+    --set persistentVolumeClaims[0].storage=5Gi \
     --set resources.requests.memory=512Mi \
     --set resources.requests.cpu=100m \
     --set resources.limits.memory=1Gi \
