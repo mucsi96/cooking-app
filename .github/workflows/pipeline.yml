@@ -1,0 +1,222 @@
+name: Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-e2e:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-test-e2e-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: test/package-lock.json
+      - name: Install dependencies
+        working-directory: test
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: test
+        run: npx playwright install chromium --with-deps
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build server image
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          load: true
+          tags: localhost/cooking-app-server:test
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
+      - name: Build client image
+        uses: docker/build-push-action@v6
+        with:
+          context: client
+          load: true
+          tags: localhost/cooking-app-client:test
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,mode=max,scope=client
+      - name: Build mock anthropic image
+        uses: docker/build-push-action@v6
+        with:
+          context: mock_anthropic_server
+          load: true
+          tags: localhost/cooking-app-mock-anthropic:test
+          cache-from: type=gha,scope=mock-anthropic
+          cache-to: type=gha,mode=max,scope=mock-anthropic
+      - name: Build mock openai image
+        uses: docker/build-push-action@v6
+        with:
+          context: mock_openai_server
+          load: true
+          tags: localhost/cooking-app-mock-openai:test
+          cache-from: type=gha,scope=mock-openai
+          cache-to: type=gha,mode=max,scope=mock-openai
+      - name: Load images into Podman
+        run: |
+          docker save localhost/cooking-app-server:test | podman load
+          docker save localhost/cooking-app-client:test | podman load
+          docker save localhost/cooking-app-mock-anthropic:test | podman load
+          docker save localhost/cooking-app-mock-openai:test | podman load
+      - name: Setup test environment and start pod
+        env:
+          SKIP_BUILD: "1"
+        run: scripts/pod_up.sh
+      - name: Run Playwright tests
+        working-directory: test
+        run: npx playwright test
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test/test-results
+      - name: Collect pod logs
+        if: always()
+        run: |
+          for container in $(podman pod inspect cooking-app-test --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null); do
+            echo "$container" | grep -q "infra" && continue
+            echo "=== $container ==="
+            podman logs "$container" 2>&1 || true
+          done
+
+  publish-server:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-publish-server-${{ github.ref }}
+      cancel-in-progress: true
+    needs: test-e2e
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    outputs:
+      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get next version
+        id: get_next_version
+        uses: mucsi96/get-next-version@main
+        with:
+          prefix: 'server'
+          src: server
+
+      - name: Set up Docker Buildx
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push server image
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          push: true
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cooking-app-server:${{ steps.get_next_version.outputs.version }}
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
+
+      - name: Create release
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_next_version.outputs.tag }}
+          generate_release_notes: true
+
+  publish-client:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-publish-client-${{ github.ref }}
+      cancel-in-progress: true
+    needs: test-e2e
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get next version
+        id: get_next_version
+        uses: mucsi96/get-next-version@main
+        with:
+          prefix: 'client'
+          src: client
+
+      - name: Set up Docker Buildx
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push client image
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: client
+          push: true
+          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cooking-app-client:${{ steps.get_next_version.outputs.version }}
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,mode=max,scope=client
+
+      - name: Create release
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_next_version.outputs.tag }}
+          generate_release_notes: true
+
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-deploy
+      cancel-in-progress: false
+    needs: [publish-server, publish-client]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: azure/use-kubelogin@v1
+        with:
+          kubelogin-version: 'v0.2.7'
+
+      - name: Connect to Twingate
+        uses: twingate/github-action@v1
+        with:
+          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
+
+      - name: Deploy to Kubernetes
+        env:
+          AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: scripts/deploy.sh

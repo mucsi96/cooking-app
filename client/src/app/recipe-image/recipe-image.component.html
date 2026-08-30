@@ -1,0 +1,7 @@
+@if (url(); as imageUrl) {
+<img [src]="imageUrl" [alt]="alt()" />
+} @else {
+<div class="placeholder" role="img" [attr.aria-label]="alt()">
+  <mat-icon aria-hidden="true">restaurant</mat-icon>
+</div>
+}

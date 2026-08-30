@@ -1,0 +1,13 @@
+{
+    "recommendations": [
+        "vmware.vscode-boot-dev-pack",
+        "vscjava.vscode-java-pack",
+        "angular.ng-template",
+        "editorconfig.editorconfig",
+        "esbenp.prettier-vscode",
+        "anweber.vscode-httpyac",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "ms-playwright.playwright",
+        "dreamcatcher45.podmanager"
+    ]
+}

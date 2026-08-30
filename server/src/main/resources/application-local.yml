@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5460/cooking
+    username: postgres
+    password: postgres
+storage:
+  directory: ./storage
+server:
+  port: 8063
+management:
+  server:
+    port: 8162

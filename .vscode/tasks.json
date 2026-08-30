@@ -1,0 +1,138 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start DB Connection Proxy",
+      "type": "shell",
+      "command": "scripts/start_db_proxy.sh",
+      "problemMatcher": [],
+      "isBackground": true,
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m ansible.cli.vault encrypt vars/vault.yaml --vault-password-file .ansible/vault_key",
+      "isBackground": true,
+      "label": "Encrypt vault",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m ansible.cli.vault decrypt vars/vault.yaml --vault-password-file .ansible/vault_key",
+      "isBackground": true,
+      "label": "Decrypt vault",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m ansible.cli.vault view vars/vault.yaml --vault-password-file .ansible/vault_key",
+      "isBackground": true,
+      "label": "View vault",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "Start client",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": "^X \\[(ERROR)\\] ((TS|NG)\\d+): (.*)$",
+            "severity": 1,
+            "code": 2,
+            "message": 4
+          },
+          {
+            "regexp": ""
+          },
+          {
+            "regexp": "^\\s*(.*):(\\d+):(\\d+):$",
+            "file": 1,
+            "line": 2,
+            "column": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": "Changes detected\\. Rebuilding\\.\\.\\."
+          },
+          "endsPattern": {
+            "regexp": "Application bundle generation (complete|failed)"
+          }
+        }
+      }
+    },
+    {
+      "type": "shell",
+      "command": "bash",
+      "label": "Install dependencies",
+      "args": ["scripts/install_dependencies.sh"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Pod up",
+      "command": "scripts/pod_up.sh",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Pod down",
+      "command": "scripts/pod_down.sh",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Dev DB up",
+      "command": "scripts/dev_db_up.sh",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Dev DB down",
+      "command": "scripts/dev_db_down.sh",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "scripts/deploy.sh",
+      "label": "Deploy",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Run Playwright Tests",
+      "command": "npm test",
+      "options": {
+        "cwd": "${workspaceFolder}/test"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    }
+  ]
+}
