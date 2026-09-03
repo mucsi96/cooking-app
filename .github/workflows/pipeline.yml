@@ -7,11 +7,117 @@ on:
   pull_request:
 
 jobs:
+  build-server-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: ${{ github.workflow }}-build-server-image-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      # The Spring profile is resolved during AOT processing and baked into the
+      # native executable, so the e2e image is built with the test profile and
+      # the published image (see publish-server) with the prod profile.
+      - name: Build server image
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          build-args: SPRING_PROFILE=test
+          tags: localhost/cooking-app-server:test
+          outputs: type=docker,dest=/tmp/server-image.tar
+          cache-from: type=gha,scope=server-test
+          cache-to: type=gha,mode=max,scope=server-test
+      - name: Upload server image
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-image
+          path: /tmp/server-image.tar
+          retention-days: 1
+
+  build-client-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ${{ github.workflow }}-build-client-image-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build client image
+        uses: docker/build-push-action@v6
+        with:
+          context: client
+          tags: localhost/cooking-app-client:test
+          outputs: type=docker,dest=/tmp/client-image.tar
+          cache-from: type=gha,scope=client
+          cache-to: type=gha,mode=max,scope=client
+      - name: Upload client image
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-image
+          path: /tmp/client-image.tar
+          retention-days: 1
+
+  build-mock-anthropic-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ${{ github.workflow }}-build-mock-anthropic-image-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build mock anthropic image
+        uses: docker/build-push-action@v6
+        with:
+          context: mock_anthropic_server
+          tags: localhost/cooking-app-mock-anthropic:test
+          outputs: type=docker,dest=/tmp/mock-anthropic-image.tar
+          cache-from: type=gha,scope=mock-anthropic
+          cache-to: type=gha,mode=max,scope=mock-anthropic
+      - name: Upload mock anthropic image
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-anthropic-image
+          path: /tmp/mock-anthropic-image.tar
+          retention-days: 1
+
+  build-mock-openai-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ${{ github.workflow }}-build-mock-openai-image-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build mock openai image
+        uses: docker/build-push-action@v6
+        with:
+          context: mock_openai_server
+          tags: localhost/cooking-app-mock-openai:test
+          outputs: type=docker,dest=/tmp/mock-openai-image.tar
+          cache-from: type=gha,scope=mock-openai
+          cache-to: type=gha,mode=max,scope=mock-openai
+      - name: Upload mock openai image
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-openai-image
+          path: /tmp/mock-openai-image.tar
+          retention-days: 1
+
   test-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     concurrency:
       group: ${{ github.workflow }}-test-e2e-${{ github.ref }}
       cancel-in-progress: true
+    needs: [build-server-image, build-client-image, build-mock-anthropic-image, build-mock-openai-image]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -25,46 +131,29 @@ jobs:
       - name: Install Playwright browsers
         working-directory: test
         run: npx playwright install chromium --with-deps
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build server image
-        uses: docker/build-push-action@v6
+      # Only the image tarballs. Without the pattern this also pulls the
+      # .dockerbuild build records docker/build-push-action uploads on its own,
+      # which this job has no use for and which failed the whole step when one
+      # of them would not download.
+      - name: Download images
+        uses: actions/download-artifact@v4
         with:
-          context: server
-          load: true
-          tags: localhost/cooking-app-server:test
-          cache-from: type=gha,scope=server
-          cache-to: type=gha,mode=max,scope=server
-      - name: Build client image
-        uses: docker/build-push-action@v6
-        with:
-          context: client
-          load: true
-          tags: localhost/cooking-app-client:test
-          cache-from: type=gha,scope=client
-          cache-to: type=gha,mode=max,scope=client
-      - name: Build mock anthropic image
-        uses: docker/build-push-action@v6
-        with:
-          context: mock_anthropic_server
-          load: true
-          tags: localhost/cooking-app-mock-anthropic:test
-          cache-from: type=gha,scope=mock-anthropic
-          cache-to: type=gha,mode=max,scope=mock-anthropic
-      - name: Build mock openai image
-        uses: docker/build-push-action@v6
-        with:
-          context: mock_openai_server
-          load: true
-          tags: localhost/cooking-app-mock-openai:test
-          cache-from: type=gha,scope=mock-openai
-          cache-to: type=gha,mode=max,scope=mock-openai
+          pattern: "*-image"
+          path: /tmp
+          merge-multiple: true
       - name: Load images into Podman
         run: |
-          docker save localhost/cooking-app-server:test | podman load
-          docker save localhost/cooking-app-client:test | podman load
-          docker save localhost/cooking-app-mock-anthropic:test | podman load
-          docker save localhost/cooking-app-mock-openai:test | podman load
+          podman load -i /tmp/server-image.tar
+          podman load -i /tmp/client-image.tar
+          podman load -i /tmp/mock-anthropic-image.tar
+          podman load -i /tmp/mock-openai-image.tar
+      # The server is a single native executable, so if it cannot even start in
+      # the runtime image there is nothing to log and the pod just times out two
+      # minutes later with an empty container log. Fail here instead.
+      - name: Check the server executable runs
+        run: |
+          timeout 60 podman run --rm localhost/cooking-app-server:test \
+            -XX:PrintFlags= > /dev/null
       - name: Setup test environment and start pod
         env:
           SKIP_BUILD: "1"
@@ -89,6 +178,7 @@ jobs:
 
   publish-server:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     concurrency:
       group: ${{ github.workflow }}-publish-server-${{ github.ref }}
       cancel-in-progress: true
@@ -121,25 +211,56 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push server image
+      - name: Resolve server image tag
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        run: |
+          echo "SERVER_IMAGE=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cooking-app-server:${{ steps.get_next_version.outputs.version }}" >> "$GITHUB_ENV"
+
+      # Built, then checked, then pushed - not build-and-push - so a prod
+      # executable that cannot start never reaches Docker Hub.
+      - name: Build server image
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
         uses: docker/build-push-action@v6
         with:
           context: server
-          push: true
-          tags: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cooking-app-server:${{ steps.get_next_version.outputs.version }}
-          cache-from: type=gha,scope=server
-          cache-to: type=gha,mode=max,scope=server
+          load: true
+          build-args: SPRING_PROFILE=prod
+          tags: ${{ env.SERVER_IMAGE }}
+          cache-from: type=gha,scope=server-prod
+          cache-to: type=gha,mode=max,scope=server-prod
 
+      # The profile is baked in at build time, so this is a different
+      # executable from the one test-e2e exercised, taking code paths - the Key
+      # Vault property source above all - that no test covers. This cannot
+      # catch a missing reflection hint, but it does catch a binary that does
+      # not start, before the image is published and deploy picks it up.
+      - name: Check the server executable runs
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        run: |
+          timeout 60 docker run --rm "$SERVER_IMAGE" -XX:PrintFlags= > /dev/null
+
+      - name: Push server image
+        if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        run: docker push "$SERVER_IMAGE"
+
+      # Tag the commit this image was actually built from. Without
+      # target_commitish the release action tags whatever main points at when
+      # the release is created, which is a different commit whenever another
+      # push lands during the minutes the native build takes. The next run then
+      # asks get-next-version for a version, sees the tag already on its own
+      # HEAD, concludes nothing changed and publishes nothing - while deploy
+      # still succeeds, on the previous commit's image.
       - name: Create release
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_next_version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
 
   publish-client:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     concurrency:
       group: ${{ github.workflow }}-publish-client-${{ github.ref }}
       cancel-in-progress: true
@@ -180,15 +301,19 @@ jobs:
           cache-from: type=gha,scope=client
           cache-to: type=gha,mode=max,scope=client
 
+      # Tag the commit this image was built from, not whatever main points at
+      # by the time the release is created - see publish-server above.
       - name: Create release
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_next_version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
 
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     concurrency:
       group: ${{ github.workflow }}-deploy
       cancel-in-progress: false

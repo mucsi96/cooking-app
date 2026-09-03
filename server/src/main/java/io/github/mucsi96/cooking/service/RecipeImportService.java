@@ -2,13 +2,25 @@ package io.github.mucsi96.cooking.service;
 
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.stereotype.Service;
 
 import io.github.mucsi96.cooking.model.ExtractedRecipe;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * {@code entity(ExtractedRecipe.class)} hands the record to Spring AI's
+ * {@code BeanOutputConverter}, which derives a JSON schema from it with the
+ * victools generator and reads the model's answer back with a plain
+ * {@code ObjectMapper}. Both work through reflection that no framework AOT
+ * processing infers - the record is neither a controller payload nor an
+ * entity - so in a native image the schema would come out empty and the
+ * answer would not bind. {@code RegisterReflectionForBinding} registers the
+ * record, its nested record and the types reachable from their components.
+ */
 @Service
 @Slf4j
+@RegisterReflectionForBinding(ExtractedRecipe.class)
 public class RecipeImportService {
 
   private static final String SYSTEM_PROMPT = """

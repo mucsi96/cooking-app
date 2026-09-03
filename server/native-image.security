@@ -1,0 +1,18 @@
+# Spring AOT generates bean-definition classes into the packages of the
+# configuration classes it processes. For the signed Spring Cloud Azure jars
+# that mixes unsigned (generated) and signed classes in one package, and the
+# native-image builder's class loader rejects that with
+#   SecurityException: ...'s signer information does not match signer
+#   information of other classes in the same package
+# Disabling the jar signature algorithms makes the builder treat those jars as
+# unsigned. Note what that means: signatures on those jars are not verified at
+# all during the build, rather than the signer mismatch alone being tolerated.
+# RSA and DSA are named because they are the signature algorithms jar signing
+# actually uses (MD2 and MD5 are digests, and carry no weight on their own);
+# dropping them is what makes a signed jar read as unsigned. The JVM offers no
+# way to scope this to particular jars - the property is global to whichever
+# JVM reads it, which is why it is confined to the builder.
+# This file is only ever passed to the native-image builder JVM (see
+# native-maven-plugin in pom.xml); it is not part of the application, and the
+# jars it applies to are the ones Maven already resolved and checksummed.
+jdk.jar.disabledAlgorithms=MD2, MD5, RSA, DSA

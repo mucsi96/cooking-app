@@ -29,6 +29,11 @@
   </scm>
   <properties>
     <java.version>21</java.version>
+    <!-- Spring profile baked into the AOT-processed / native image at build
+         time. GraalVM native images resolve their bean definitions during AOT
+         processing, so the profile cannot be chosen at runtime any more: build
+         one image per profile instead (test, prod). -->
+    <app.profile>prod</app.profile>
   </properties>
   <dependencies>
     <dependency>
@@ -128,6 +133,20 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <!-- Ahead of the version the Azure BOM pins (1.58.0), whose
+           native-image.properties forces SLF4J and logback to build-time
+           initialization. Spring Boot sets logging up at run time, and the mix
+           leaves objects of run-time initialized types in the image heap, which
+           the native-image builder rejects. A build cannot undo such a
+           directive either: exclude-config does not apply to
+           native-image.properties, and initialize-at-run-time for the same
+           class is rejected outright. 1.59.0 dropped those directives. Check
+           this again when spring-cloud-azure-dependencies moves. -->
+      <dependency>
+        <groupId>com.azure</groupId>
+        <artifactId>azure-core</artifactId>
+        <version>1.59.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -159,6 +178,71 @@
               <artifactId>lombok</artifactId>
             </exclude>
           </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>process-aot</id>
+            <configuration>
+              <profiles>
+                <profile>${app.profile}</profile>
+              </profiles>
+              <!-- AOT processing refreshes the application context at build
+                   time, so every placeholder an auto-configuration condition
+                   reads has to resolve, and the Key Vault property source has
+                   to be off so the build never reaches out to Azure. The
+                   actuator port is a build-time-only stand-in: it is not baked
+                   into the image, but the conditions it makes match are, so it
+                   has to make the same conditions match as the real value does
+                   at runtime. Here that condition is whether the management
+                   endpoints get a context of their own, which is decided by
+                   the actuator port differing from the server port - not by
+                   either number. So this value never has to equal the one
+                   test-pod.yaml or the Helm release sets; it only has to stay
+                   different from the server port, as they are. Running the two
+                   on one port at runtime would contradict what the image was
+                   built for, and silently: the wiring is already fixed. A new
+                   required environment placeholder read by a condition means
+                   adding it here too - the build fails with "Could not resolve
+                   placeholder" when one is missing.
+                   Placeholders only read while creating beans, such as
+                   ${db-url}, ${openai-api-key} or ${STORAGE_DIRECTORY}, are
+                   resolved at runtime and do not belong here. -->
+              <systemPropertyVariables>
+                <spring.cloud.azure.keyvault.secret.property-source-enabled>false</spring.cloud.azure.keyvault.secret.property-source-enabled>
+                <SPRING_ACTUATOR_PORT>8162</SPRING_ACTUATOR_PORT>
+              </systemPropertyVariables>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.graalvm.buildtools</groupId>
+        <artifactId>native-maven-plugin</artifactId>
+        <configuration>
+          <!-- Pull reachability metadata for libraries that do not ship their
+               own (the PostgreSQL JDBC driver, OkHttp, ...). -->
+          <metadataRepository>
+            <enabled>true</enabled>
+          </metadataRepository>
+          <buildArgs>
+            <!-- musl, to match the Alpine runtime image, and deliberately not
+                 a fully static link: static binaries segfault the moment they
+                 start in a container, before GraalVM installs its own segfault
+                 handler and so with no output at all. Dynamic musl is what the
+                 Liberica NIK musl image is built to produce. -->
+            <buildArg>--libc=musl</buildArg>
+            <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+            <!-- azure-core build-time initializes a few Jackson core classes
+                 but not everything they hold on to, which would leave objects
+                 of run-time initialized types in the image heap. Naming those
+                 types one by one turns into whack-a-mole (Base64Variants pulls
+                 in Base64Variant, which pulls in its nested
+                 PaddingReadBehaviour), hence the whole package. -->
+            <buildArg>--initialize-at-build-time=com.fasterxml.jackson.core</buildArg>
+            <!-- See native-image.security for why the builder has to ignore
+                 jar signatures. -->
+            <buildArg>-J-Djava.security.properties=${project.basedir}/native-image.security</buildArg>
+          </buildArgs>
         </configuration>
       </plugin>
     </plugins>
