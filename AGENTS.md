@@ -239,6 +239,12 @@ Build-time details that live in `server/pom.xml` and are easy to trip over:
   at startup with `MissingReflectionRegistrationError: ...
   AddPrimaryKeyChange.getCatalogName()`. `LiquibaseNativeHints` registers the
   whole `liquibase.change` package so a new change type cannot bring this back.
+- On PostgreSQL, Hibernate prepares its multi-id loader at session-factory
+  creation by allocating an empty array of each entity's identifier type
+  reflectively. Spring's JPA hints cover the entities but not `UUID[]`, so the
+  `entityManagerFactory` bean dies with `MissingReflectionRegistrationError:
+  Cannot reflectively instantiate the array class 'java.util.UUID[]'`.
+  `EntityIdArrayNativeHints` registers the array type of every entity's `@Id`.
 - `RecipeImportService` reads the model's answer into `ExtractedRecipe` through
   Spring AI's `BeanOutputConverter`, which derives the JSON schema with the
   victools generator and binds the answer with a plain `ObjectMapper`. Neither
