@@ -36,6 +36,23 @@ clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -
 
 echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag using spring-app chart $springAppChartVersion"
 
+# CPU limits are intentionally omitted for both services (limits.cpu=null
+# clears the chart default): on a single-user node they only throttle
+# startup and the ffmpeg runs; memory limits are the ones that matter.
+#
+# The server is a GraalVM native executable, so there is no JVM metaspace, no
+# code cache and no JIT-compiled code to hold: it idles far below what a JRE
+# image would use, hence the smaller request. The request is what the
+# scheduler reserves around the clock, so it is sized for idle. It is an
+# estimate taken from skeleton-app's measured ~58Mi working set plus headroom
+# for the image bytes an import keeps in flight - replace it with what
+# metrics-server reports once this image has run in production for a while.
+#
+# The limit is the opposite question: it has to cover the idle footprint, the
+# 256Mi heap the image is capped at (see the ENTRYPOINT in server/Dockerfile -
+# keep the two in step) and the ffmpeg child processes that convert the
+# generated images to webp, which run outside the heap but inside the
+# container's cgroup.
 helm upgrade $SERVER_RELEASE_NAME mucsi96/spring-app \
     --install \
     --version $springAppChartVersion \
@@ -54,10 +71,10 @@ helm upgrade $SERVER_RELEASE_NAME mucsi96/spring-app \
     --set persistentVolumeClaims[0].mountPath=/app/storage \
     --set persistentVolumeClaims[0].storageClassName="" \
     --set persistentVolumeClaims[0].storage=5Gi \
-    --set resources.requests.memory=512Mi \
-    --set resources.requests.cpu=100m \
-    --set resources.limits.memory=1Gi \
-    --set resources.limits.cpu=500m \
+    --set resources.requests.memory=128Mi \
+    --set resources.requests.cpu=25m \
+    --set resources.limits.memory=768Mi \
+    --set resources.limits.cpu=null \
     --wait
 
 echo "Deploying client: $DOCKERHUB_USERNAME/cooking-app-client:$clientLatestTag using client-app chart $clientAppChartVersion"
@@ -68,4 +85,8 @@ helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --set image=$DOCKERHUB_USERNAME/cooking-app-client:$clientLatestTag \
     --set host=$HOSTNAME \
     --set entryPoint=web \
+    --set resources.requests.memory=16Mi \
+    --set resources.requests.cpu=5m \
+    --set resources.limits.memory=32Mi \
+    --set resources.limits.cpu=null \
     --wait

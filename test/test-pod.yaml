@@ -115,8 +115,6 @@ spec:
           value: "8064"
         - name: SPRING_ACTUATOR_PORT
           value: "8162"
-        - name: SPRING_PROFILES_ACTIVE
-          value: test
         - name: DB_URL
           value: jdbc:postgresql://localhost:5432/test
         - name: DB_USERNAME
@@ -142,9 +140,13 @@ spec:
         httpGet:
           path: /actuator/health/readiness
           port: 8162
-        initialDelaySeconds: 16
+        # The native executable is serving within a second of the container
+        # starting, so there is nothing to wait for before the first probe. The
+        # window stays generous because readiness still waits for the db
+        # container and the Liquibase migration.
+        initialDelaySeconds: 2
         periodSeconds: 2
-        failureThreshold: 10
+        failureThreshold: 30
 
     - name: client
       image: localhost/cooking-app-client:test

@@ -26,13 +26,31 @@ AI image generation approach of
 ## Stack
 
 - **Client** - Angular 22 with Material UI dark theme (Hungarian UI)
-- **Server** - Spring Boot 4 with Java 21, Spring AI (Anthropic), openai-java
+- **Server** - Spring Boot 4 with Java 21, Spring AI (Anthropic), openai-java, compiled ahead of time into a GraalVM native image
 - **Database** - PostgreSQL with Spring Data JPA and Liquibase
 - **Authentication** - Azure AD (MSAL) with conditional mock auth for testing
 - **Configuration** - Azure Key Vault + Spring profiles (prod/local/test)
 - **AI Mocking** - Express mock servers for the Anthropic and OpenAI APIs
 - **Testing** - Playwright E2E tests
 - **Deployment** - Docker multi-stage builds with Traefik reverse proxy
+
+## One image per Spring profile
+
+The server is shipped as a GraalVM native executable. Bean definitions are
+resolved during ahead-of-time processing at build time, so the active Spring
+profile is baked into the executable and cannot be chosen at startup any more.
+The server image is therefore built once per profile, via the `SPRING_PROFILE`
+build argument:
+
+```bash
+podman build --build-arg SPRING_PROFILE=test -t cooking-app-server:test server   # e2e pod
+podman build --build-arg SPRING_PROFILE=prod -t cooking-app-server:prod server   # published image
+```
+
+`SPRING_PROFILES_ACTIVE` is not read at runtime; the pipeline builds the test
+image for the e2e job and the prod image when publishing to Docker Hub. Running
+the server on a JVM for local development is unaffected - `mvn spring-boot:run
+-Dspring-boot.run.profiles=local` still selects the profile the usual way.
 
 ## Port Mapping
 
@@ -75,7 +93,7 @@ cannot provide). On WSL, enable `systemd=true` in `/etc/wsl.conf` and install it
 via your distro, e.g. `apt install podman`.
 
 **ffmpeg** is required by the server for webp thumbnail conversion (installed
-in the server Docker image; install it locally for the local profile).
+in the server's Alpine runtime image; install it locally for the local profile).
 
 ## Quick Start
 
