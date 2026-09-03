@@ -231,6 +231,14 @@ Build-time details that live in `server/pom.xml` and are easy to trip over:
   and both SDKs' `core` packages) through the shared `PackageReflectionHints`
   scanner. A call into a new SDK area (another OpenAI endpoint, the Anthropic
   beta API) means adding its package there.
+- Liquibase validates a changelog by re-computing each change set's checksum,
+  which serializes the change object by invoking every getter reflectively -
+  including the ones the changelog leaves unset. The reachability metadata the
+  GraalVM repository ships for liquibase-core lists those getters only behind
+  conditions this application never reaches, so an `addPrimaryKey` change dies
+  at startup with `MissingReflectionRegistrationError: ...
+  AddPrimaryKeyChange.getCatalogName()`. `LiquibaseNativeHints` registers the
+  whole `liquibase.change` package so a new change type cannot bring this back.
 - `RecipeImportService` reads the model's answer into `ExtractedRecipe` through
   Spring AI's `BeanOutputConverter`, which derives the JSON schema with the
   victools generator and binds the answer with a plain `ObjectMapper`. Neither

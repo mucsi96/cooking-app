@@ -15,7 +15,7 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
  * {@link OpenAINativeHints}).
  *
  * The scan reads bytecode rather than loading classes, and skips anonymous and
- * lambda classes. Both matter: Spring AI's own
+ * lambda classes as well as {@code package-info}. All of it matters: Spring AI's own
  * {@code AiRuntimeHints.findJsonAnnotatedClassesInPackage} helper loads every
  * candidate, and loading one of those synthetic classes here
  * ({@code SseHandler$mapJson$1$handle$1}) throws
@@ -24,8 +24,12 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
  */
 final class PackageReflectionHints {
 
-  /** Anonymous and lambda classes: a {@code $} followed by a digit. */
-  private static final Pattern SYNTHETIC = Pattern.compile("\\$\\d");
+  /**
+   * Anonymous and lambda classes: a {@code $} followed by a digit. Also
+   * {@code package-info}, which the scanner lists for packages that carry
+   * annotations but which is not a type a hint can name.
+   */
+  private static final Pattern SKIPPED = Pattern.compile("\\$\\d|\\.package-info$");
 
   private PackageReflectionHints() {
   }
@@ -45,7 +49,7 @@ final class PackageReflectionHints {
     for (String pkg : packages) {
       for (BeanDefinition definition : scanner.findCandidateComponents(pkg)) {
         final String name = definition.getBeanClassName();
-        if (name == null || SYNTHETIC.matcher(name).find()) {
+        if (name == null || SKIPPED.matcher(name).find()) {
           continue;
         }
         hints.reflection().registerTypeIfPresent(classLoader, name,
