@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="146" y1="72" x2="878" y2="952" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7657B5"/>
+      <stop offset="0.48" stop-color="#5C3A96"/>
+      <stop offset="1" stop-color="#39205F"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(512 392) rotate(90) scale(506)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A98BDD" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#7A5AB5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pot" x1="512" y1="457" x2="512" y2="805" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF8"/>
+      <stop offset="1" stop-color="#F2E9DD"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="512" y1="430" x2="512" y2="530" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF9"/>
+      <stop offset="1" stop-color="#EADDCF"/>
+    </linearGradient>
+    <linearGradient id="steam" x1="512" y1="134" x2="512" y2="342" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7EA" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#FFFDF8"/>
+    </linearGradient>
+    <filter id="shadow" x="106" y="306" width="812" height="582" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#24103E" flood-opacity="0.36"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#background)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <path d="M0 0H1024V18C754 74 270 74 0 18V0Z" fill="#FFFFFF" fill-opacity="0.07"/>
+
+  <g fill="none" stroke="url(#steam)" stroke-width="42" stroke-linecap="round">
+    <path d="M384 318C326 264 424 235 379 169"/>
+    <path d="M512 300C454 238 558 208 512 135"/>
+    <path d="M640 318C592 264 686 235 645 169"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <path d="M248 517H776V690C776 766 714 828 638 828H386C310 828 248 766 248 690V517Z" fill="url(#pot)"/>
+    <path d="M248 542H776V585C776 596 767 605 756 605H268C257 605 248 596 248 585V542Z" fill="#E9DDD1" fill-opacity="0.46"/>
+    <path d="M224 545H268V681H213C190 681 172 662 172 640V601C172 570 195 545 224 545Z" fill="url(#pot)"/>
+    <path d="M800 545H756V681H811C834 681 852 662 852 640V601C852 570 829 545 800 545Z" fill="url(#pot)"/>
+    <path d="M318 469C338 386 417 333 512 333C607 333 686 386 706 469H318Z" fill="url(#pot)"/>
+    <rect x="455" y="310" width="114" height="70" rx="35" fill="url(#pot)"/>
+    <rect x="214" y="458" width="596" height="92" rx="46" fill="url(#rim)"/>
+    <rect x="244" y="480" width="536" height="23" rx="11.5" fill="#FFFFFF" fill-opacity="0.7"/>
+    <path d="M288 637C288 622 300 610 315 610H339C354 610 366 622 366 637V705C366 735 390 759 420 759H604C619 759 631 771 631 786C631 801 619 813 604 813H406C341 813 288 760 288 695V637Z" fill="#FFFFFF" fill-opacity="0.28"/>
+  </g>
+</svg>
