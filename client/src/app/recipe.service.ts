@@ -67,6 +67,15 @@ export class RecipeService {
     });
   }
 
+  importRecipeImage(image: File): Promise<Recipe> {
+    const body = new FormData();
+    body.append('image', image);
+    return fetchJson<Recipe>(this.http, '/api/recipes/import/image', {
+      method: 'post',
+      body,
+    });
+  }
+
   getCandidateImages(recipeId: string): Promise<CandidateImage[]> {
     return fetchJson<CandidateImage[]>(this.http, `/api/recipes/${recipeId}/images`);
   }

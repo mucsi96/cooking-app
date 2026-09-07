@@ -3,7 +3,9 @@ package io.github.mucsi96.cooking.service;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MimeTypeUtils;
 
 import io.github.mucsi96.cooking.model.ExtractedRecipe;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +26,9 @@ import lombok.extern.slf4j.Slf4j;
 public class RecipeImportService {
 
   private static final String SYSTEM_PROMPT = """
-      You are a recipe extraction assistant. You receive the raw text of a recipe \
-      pasted from an email, website or book. The text can be in any language \
+      You are a recipe extraction assistant. You receive a recipe as raw text \
+      pasted from an email, website or book, or as a photo of a printed or \
+      handwritten recipe. The source can be in any language \
       (English, German, Hungarian, ...). Extract a single structured recipe from it. \
       All output text - title, description, ingredient names, units and steps - \
       must be written in Hungarian, translating where necessary. \
@@ -53,6 +56,18 @@ public class RecipeImportService {
         .prompt()
         .system(SYSTEM_PROMPT)
         .user(text)
+        .call()
+        .entity(ExtractedRecipe.class);
+  }
+
+  public ExtractedRecipe extract(byte[] image) {
+    log.info("Extracting structured recipe from a {} byte photo", image.length);
+    return chatClient
+        .prompt()
+        .system(SYSTEM_PROMPT)
+        .user(user -> user
+            .text("Extract the single recipe visible in this photo. Ignore unrelated surrounding text.")
+            .media(MimeTypeUtils.IMAGE_JPEG, new ByteArrayResource(image)))
         .call()
         .entity(ExtractedRecipe.class);
   }

@@ -2,18 +2,20 @@
   display: block;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem 2rem;
+  padding: 0 1rem 2rem;
 }
 
 h2 {
   color: var(--bt-text-strong);
   margin: 2rem 0 1rem;
+  font-size: 1.75rem;
+  letter-spacing: -0.025em;
 }
 
 .recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .recipe-card {
@@ -25,6 +27,7 @@ mat-card {
   overflow: hidden;
   background: var(--bt-surface-1);
   border: 1px solid var(--bt-outline);
+  border-radius: 16px;
 }
 
 .thumbnail {
@@ -34,7 +37,29 @@ mat-card {
 h3 {
   color: var(--bt-text-default);
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+@media (max-width: 340px) {
+  .recipe-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 600px) {
+  :host {
+    padding-inline: 2rem;
+  }
+
+  .recipe-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
 }
 
 .empty-state {

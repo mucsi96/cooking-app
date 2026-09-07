@@ -3,13 +3,16 @@ package io.github.mucsi96.cooking.controller;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import io.github.mucsi96.cooking.model.CandidateImageResponse;
 import io.github.mucsi96.cooking.model.RecipeImportRequest;
@@ -42,6 +45,12 @@ public class RecipeController {
   @PreAuthorize("hasAuthority('APPROLE_RecipeCreator') and hasAuthority('SCOPE_createRecipe')")
   public RecipeResponse importRecipe(@Valid @RequestBody RecipeImportRequest request) {
     return recipeService.importRecipe(request.text());
+  }
+
+  @PostMapping(path = "/recipes/import/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('APPROLE_RecipeCreator') and hasAuthority('SCOPE_createRecipe')")
+  public RecipeResponse importRecipeImage(@RequestPart("image") MultipartFile image) {
+    return recipeService.importRecipeImage(image);
   }
 
   @GetMapping("/recipes/{id}/images")

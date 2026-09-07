@@ -5,10 +5,38 @@ body {
   height: 100%;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 html {
   @include bt.theme();
 }
 
 body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, sans-serif;
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto;
+  }
 }

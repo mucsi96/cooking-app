@@ -4,7 +4,7 @@ import { ChatHandler } from './chatHandler';
 const app = express();
 const chatHandler = new ChatHandler();
 
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 // Middleware to log access details
 app.use((req, res, next) => {
