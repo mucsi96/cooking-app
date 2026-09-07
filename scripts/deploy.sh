@@ -43,10 +43,9 @@ echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag 
 # The server is a GraalVM native executable, so there is no JVM metaspace, no
 # code cache and no JIT-compiled code to hold: it idles far below what a JRE
 # image would use, hence the smaller request. The request is what the
-# scheduler reserves around the clock, so it is sized for idle. It is an
-# estimate taken from skeleton-app's measured ~58Mi working set plus headroom
-# for the image bytes an import keeps in flight - replace it with what
-# metrics-server reports once this image has run in production for a while.
+# scheduler reserves around the clock, so it is sized for idle. Over 36h in
+# production RSS averaged 101Mi and peaked at 112Mi; the working set peaked at
+# 248Mi.
 #
 # The limit is the opposite question: it has to cover the idle footprint, the
 # 256Mi heap the image is capped at (see the ENTRYPOINT in server/Dockerfile -
@@ -85,7 +84,7 @@ helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --set image=$DOCKERHUB_USERNAME/cooking-app-client:$clientLatestTag \
     --set host=$HOSTNAME \
     --set entryPoint=web \
-    --set resources.requests.memory=16Mi \
+    --set resources.requests.memory=8Mi \
     --set resources.requests.cpu=5m \
     --set resources.limits.memory=32Mi \
     --set resources.limits.cpu=null \
