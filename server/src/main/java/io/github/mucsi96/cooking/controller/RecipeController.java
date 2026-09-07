@@ -30,43 +30,43 @@ public class RecipeController {
   private final RecipeService recipeService;
 
   @GetMapping("/recipes")
-  @PreAuthorize("hasAuthority('APPROLE_RecipeReader') and hasAuthority('SCOPE_readRecipes')")
+  @PreAuthorize("hasAuthority('APPROLE_readRecipes')")
   public List<RecipeListItemResponse> listRecipes() {
     return recipeService.listRecipes();
   }
 
   @GetMapping("/recipes/{id}")
-  @PreAuthorize("hasAuthority('APPROLE_RecipeReader') and hasAuthority('SCOPE_readRecipes')")
+  @PreAuthorize("hasAuthority('APPROLE_readRecipes')")
   public RecipeResponse getRecipe(@PathVariable UUID id) {
     return recipeService.getRecipe(id);
   }
 
   @PostMapping("/recipes/import")
-  @PreAuthorize("hasAuthority('APPROLE_RecipeCreator') and hasAuthority('SCOPE_createRecipe')")
+  @PreAuthorize("hasAuthority('APPROLE_createRecipe')")
   public RecipeResponse importRecipe(@Valid @RequestBody RecipeImportRequest request) {
     return recipeService.importRecipe(request.text());
   }
 
   @PostMapping(path = "/recipes/import/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  @PreAuthorize("hasAuthority('APPROLE_RecipeCreator') and hasAuthority('SCOPE_createRecipe')")
+  @PreAuthorize("hasAuthority('APPROLE_createRecipe')")
   public RecipeResponse importRecipeImage(@RequestPart("image") MultipartFile image) {
     return recipeService.importRecipeImage(image);
   }
 
   @GetMapping("/recipes/{id}/images")
-  @PreAuthorize("hasAuthority('APPROLE_RecipeReader') and hasAuthority('SCOPE_readRecipes')")
+  @PreAuthorize("hasAuthority('APPROLE_readRecipes')")
   public List<CandidateImageResponse> getCandidateImages(@PathVariable UUID id) {
     return recipeService.getCandidateImages(id);
   }
 
   @PostMapping("/recipes/{id}/images")
-  @PreAuthorize("hasAuthority('APPROLE_RecipeCreator') and hasAuthority('SCOPE_createRecipe')")
+  @PreAuthorize("hasAuthority('APPROLE_createRecipe')")
   public List<CandidateImageResponse> generateCandidateImages(@PathVariable UUID id) {
     return recipeService.generateCandidateImages(id);
   }
 
   @PutMapping("/recipes/{id}/image")
-  @PreAuthorize("hasAuthority('APPROLE_RecipeCreator') and hasAuthority('SCOPE_createRecipe')")
+  @PreAuthorize("hasAuthority('APPROLE_createRecipe')")
   public void selectImage(@PathVariable UUID id, @Valid @RequestBody SelectImageRequest request) {
     recipeService.selectImage(id, request.imageId());
   }

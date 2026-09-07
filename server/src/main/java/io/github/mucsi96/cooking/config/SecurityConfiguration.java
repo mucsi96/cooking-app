@@ -34,7 +34,7 @@ public class SecurityConfiguration {
         http.authorizeHttpRequests(requests -> requests
                 .requestMatchers("/environment").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .anyRequest().authenticated());
+                .anyRequest().hasAuthority("SCOPE_api-access"));
 
         return http.build();
     }
