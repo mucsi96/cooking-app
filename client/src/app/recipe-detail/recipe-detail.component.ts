@@ -91,6 +91,10 @@ export class RecipeDetailComponent {
     this.servings.update((servings) => servings + 1);
   }
 
+  printRecipe(): void {
+    window.print();
+  }
+
   async selectImage(imageId: string): Promise<void> {
     await this.recipeService.selectImage(this.recipeId(), imageId);
     this.recipe.reload();

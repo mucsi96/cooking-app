@@ -6,11 +6,17 @@
     <app-recipe-image [imageId]="recipeValue.imageId" [alt]="recipeValue.title" />
   </div>
 
-  <div class="title-row">
-    <h1>{{ recipeValue.title }}</h1>
-    <mat-chip-set aria-label="Kategória">
-      <mat-chip>{{ recipeValue.category }}</mat-chip>
-    </mat-chip-set>
+  <div class="heading-row">
+    <div class="title-row">
+      <h1>{{ recipeValue.title }}</h1>
+      <mat-chip-set aria-label="Kategória">
+        <mat-chip>{{ recipeValue.category }}</mat-chip>
+      </mat-chip-set>
+    </div>
+    <button class="print-button" mat-stroked-button (click)="printRecipe()">
+      <mat-icon>print</mat-icon>
+      Nyomtatás
+    </button>
   </div>
 
   <p class="description">{{ recipeValue.description }}</p>
@@ -59,7 +65,7 @@
     </ol>
   </section>
 
-  <section aria-label="Borítókép">
+  <section class="cover-section" aria-label="Borítókép">
     <h2>Borítókép</h2>
     <p class="hint">
       Válaszd ki a kedvenc AI-generált képedet, vagy kérj újakat.

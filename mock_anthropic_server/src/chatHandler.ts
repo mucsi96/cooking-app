@@ -1,5 +1,5 @@
 import { ClaudeRequest } from './types';
-import { createClaudeResponse, getMessageContent } from './utils';
+import { createClaudeResponse, getMessageContent, hasImageContent } from './utils';
 import { GOULASH, STRUDEL } from './data';
 
 export class ChatHandler {
@@ -20,6 +20,9 @@ export class ChatHandler {
     // Structured recipe extraction: respond with JSON only, as the
     // BeanOutputConverter format instructions demand.
     if (system.includes('recipe extraction assistant')) {
+      if (content.includes('visible in this photo') && !hasImageContent(userMessage)) {
+        throw new Error('Recipe photo is missing from the user message');
+      }
       if (content.includes('Goulash') || content.includes('goulash')) {
         return createClaudeResponse(JSON.stringify(GOULASH));
       }

@@ -1,11 +1,18 @@
 <mat-toolbar class="header">
-  <nav>
-    <a mat-button href="/">Receptek</a>
+  <nav aria-label="Fő navigáció">
+    <span class="brand">Szakácskönyv</span>
     @if(isAuthenticated()) {
-    <a mat-button routerLink="/importalas">Importálás</a>
-    <div class="header-right">
-      <app-header></app-header>
+    <div class="primary-navigation">
+      <a mat-button routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        <mat-icon>restaurant_menu</mat-icon>
+        <span>Receptek</span>
+      </a>
+      <a mat-button routerLink="/importalas" routerLinkActive="active">
+        <mat-icon>add_circle_outline</mat-icon>
+        <span>Importálás</span>
+      </a>
     </div>
+    <app-header></app-header>
     }
   </nav>
 </mat-toolbar>

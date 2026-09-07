@@ -1,33 +1,97 @@
-<h1>Recept importálása</h1>
-<p class="hint">
-  Illeszd be a recept szövegét bármilyen nyelven (angol, német, magyar...).
-  A mesterséges intelligencia magyar nyelvű, strukturált receptet készít belőle.
-</p>
+<header class="page-header">
+  <p class="eyebrow">Új recept</p>
+  <h1>Hogyan adnád hozzá?</h1>
+  <p class="hint">
+    Fotózd le a receptet, válassz egy korábbi képet, vagy illeszd be a szövegét.
+    Az eredményt magyarul mentjük el.
+  </p>
+</header>
 
-<mat-form-field appearance="outline" class="text-field">
-  <mat-label>Recept szövege</mat-label>
-  <textarea
-    matInput
-    rows="14"
-    [ngModel]="text()"
-    (ngModelChange)="text.set($event)"
-    [disabled]="importing()"
-    placeholder="Illeszd be ide a recept szövegét..."
-  ></textarea>
-</mat-form-field>
+<section class="photo-section" aria-labelledby="photo-title">
+  <h2 id="photo-title">Recept felismerése fotóról</h2>
+  <div class="photo-actions">
+    <button mat-stroked-button type="button" (click)="cameraInput.click()" [disabled]="importing()">
+      <mat-icon>photo_camera</mat-icon>
+      <span>Fotó készítése</span>
+    </button>
+    <button mat-stroked-button type="button" (click)="galleryInput.click()" [disabled]="importing()">
+      <mat-icon>photo_library</mat-icon>
+      <span>Kiválasztás a Fotókból</span>
+    </button>
+  </div>
+  <input
+    #cameraInput
+    class="file-input"
+    type="file"
+    accept="image/*"
+    capture="environment"
+    aria-label="Recept lefotózása"
+    (change)="selectPhoto($event)"
+  />
+  <input
+    #galleryInput
+    class="file-input"
+    type="file"
+    accept="image/*"
+    aria-label="Receptfotó kiválasztása"
+    (change)="selectPhoto($event)"
+  />
 
-<div class="actions">
+  @if (selectedPhoto(); as photo) {
+  <div class="photo-preview">
+    @if (previewUrl(); as preview) {
+    <img [src]="preview" alt="Kiválasztott receptfotó" />
+    }
+    <div class="photo-details">
+      <span class="photo-name">{{ photo.name }}</span>
+      <button mat-button type="button" (click)="clearPhoto()" [disabled]="importing()">
+        Fotó eltávolítása
+      </button>
+    </div>
+  </div>
   <button
+    class="primary-action"
+    mat-flat-button
+    [disabled]="importing()"
+    (click)="importPhoto()"
+  >
+    Recept felismerése
+  </button>
+  }
+</section>
+
+<div class="divider"><span>vagy</span></div>
+
+<section aria-labelledby="text-title">
+  <h2 id="text-title">Beillesztés szövegből</h2>
+  <mat-form-field appearance="outline" class="text-field">
+    <mat-label>Recept szövege</mat-label>
+    <textarea
+      matInput
+      rows="10"
+      [ngModel]="text()"
+      (ngModelChange)="text.set($event)"
+      [disabled]="importing()"
+      placeholder="Illeszd be ide a recept szövegét bármilyen nyelven..."
+    ></textarea>
+  </mat-form-field>
+
+  <button
+    class="primary-action"
     mat-flat-button
     [disabled]="!text().trim() || importing()"
     (click)="importRecipe()"
   >
     Importálás
   </button>
-  @if (importing()) {
-  <div class="importing" role="status">
-    <mat-spinner diameter="24" />
-    <span>Recept feldolgozása...</span>
-  </div>
-  }
+</section>
+
+@if (importing()) {
+<div class="importing" role="status">
+  <mat-spinner diameter="24" />
+  <span>A recept feldolgozása folyamatban van...</span>
 </div>
+}
+@if (error(); as errorMessage) {
+<p class="error" role="alert">{{ errorMessage }}</p>
+}

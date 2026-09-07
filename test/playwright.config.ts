@@ -16,7 +16,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:8160',
+    baseURL: process.env.TEST_BASE_URL ?? 'http://localhost:8160',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Ignore HTTPS errors */
@@ -29,6 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      testIgnore: '**/mobile.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
         // HAR recording
@@ -38,6 +39,17 @@ export default defineConfig({
             mode: 'minimal',
           },
         },
+      },
+    },
+    {
+      name: 'iPhone XS',
+      testMatch: '**/mobile.spec.ts',
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 375, height: 812 },
+        deviceScaleFactor: 3,
+        hasTouch: true,
+        isMobile: true,
       },
     },
   ],

@@ -11,6 +11,12 @@ export function getMessageContent(message: ClaudeMessage): string {
     .join('\n');
 }
 
+export function hasImageContent(message: ClaudeMessage): boolean {
+  return Array.isArray(message.content) && message.content.some(
+    (block) => block.type === 'image' && block.source.data.length > 0
+  );
+}
+
 export function messagesMatch(
   request: ClaudeRequest,
   systemPattern: string | null,

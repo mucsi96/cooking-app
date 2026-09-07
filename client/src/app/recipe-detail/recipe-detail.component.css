@@ -2,7 +2,7 @@
   display: block;
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 2rem 3rem;
+  padding: 0 1rem 3rem;
 }
 
 .hero {
@@ -20,9 +20,33 @@
   flex-wrap: wrap;
 }
 
+.heading-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.print-button {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
 h1,
 h2 {
   color: var(--bt-text-strong);
+}
+
+h1 {
+  font-size: clamp(2rem, 8vw, 3rem);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  margin-block: 0.35rem;
+}
+
+h2 {
+  letter-spacing: -0.015em;
+  margin-top: 2rem;
 }
 
 .description {
@@ -35,6 +59,11 @@ h2 {
   align-items: center;
   gap: 0.5rem;
   margin: 1.5rem 0;
+  width: fit-content;
+  background: var(--bt-surface-1);
+  border: 1px solid var(--bt-outline);
+  border-radius: 999px;
+  padding: 0.15rem;
 }
 
 .servings-value {
@@ -100,4 +129,119 @@ h2 {
   display: flex;
   justify-content: center;
   margin: 150px auto;
+}
+
+@media (min-width: 600px) {
+  :host {
+    padding-inline: 2rem;
+  }
+}
+
+@media (max-width: 599px) {
+  .hero {
+    aspect-ratio: 4 / 3;
+    border-radius: 16px;
+  }
+
+  .heading-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .print-button {
+    width: 100%;
+  }
+
+  .ingredients,
+  .steps {
+    padding-left: 1.25rem;
+  }
+
+  .ingredients li,
+  .steps li {
+    margin-bottom: 0.45rem;
+  }
+
+  .candidates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media print {
+  :host {
+    color: #000;
+    max-width: none;
+    padding: 0;
+  }
+
+  article,
+  h1,
+  h2,
+  .description,
+  .ingredients,
+  .steps,
+  .servings-value {
+    color: #000 !important;
+  }
+
+  .hero,
+  .print-button,
+  .cover-section,
+  .servings button,
+  mat-chip-set {
+    display: none !important;
+  }
+
+  .heading-row,
+  .title-row {
+    display: block;
+  }
+
+  h1 {
+    border-bottom: 2px solid #000;
+    font-size: 25pt;
+    margin: 0 0 5mm;
+    padding-bottom: 3mm;
+  }
+
+  h2 {
+    font-size: 15pt;
+    margin: 6mm 0 2mm;
+  }
+
+  .description {
+    font-size: 10.5pt;
+    line-height: 1.4;
+  }
+
+  .servings {
+    background: none;
+    border: 0;
+    margin: 4mm 0;
+    padding: 0;
+  }
+
+  .servings-value {
+    font-size: 11pt;
+    font-weight: 700;
+    min-width: 0;
+  }
+
+  section {
+    break-inside: avoid;
+  }
+
+  .ingredients,
+  .steps {
+    font-size: 10.5pt;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  .ingredients li,
+  .steps li {
+    break-inside: avoid;
+    margin-bottom: 1.5mm;
+  }
 }

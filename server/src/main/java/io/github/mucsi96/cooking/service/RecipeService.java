@@ -1,5 +1,6 @@
 package io.github.mucsi96.cooking.service;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 import io.github.mucsi96.cooking.entity.Ingredient;
 import io.github.mucsi96.cooking.entity.ImageGenerationJob;
@@ -30,9 +32,11 @@ import lombok.extern.slf4j.Slf4j;
 public class RecipeService {
 
   private static final int CANDIDATE_IMAGE_COUNT = 3;
+  private static final long MAX_RECIPE_PHOTO_BYTES = 15L * 1024 * 1024;
 
   private final RecipeRepository recipeRepository;
   private final RecipeImportService recipeImportService;
+  private final FfmpegService ffmpegService;
   private final ImageGenerationJobService imageGenerationJobService;
   private final AsyncImageGenerationService asyncImageGenerationService;
 
@@ -50,7 +54,26 @@ public class RecipeService {
   }
 
   public RecipeResponse importRecipe(String text) {
-    final ExtractedRecipe extracted = recipeImportService.extract(text);
+    return importRecipe(recipeImportService.extract(text));
+  }
+
+  public RecipeResponse importRecipeImage(MultipartFile image) {
+    if (image.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Recipe photo is empty");
+    }
+    if (image.getSize() > MAX_RECIPE_PHOTO_BYTES) {
+      throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Recipe photo exceeds 15 MB");
+    }
+
+    try {
+      final byte[] normalizedImage = ffmpegService.normalizeRecipePhoto(image.getBytes());
+      return importRecipe(recipeImportService.extract(normalizedImage));
+    } catch (IOException e) {
+      throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Recipe photo cannot be read", e);
+    }
+  }
+
+  private RecipeResponse importRecipe(ExtractedRecipe extracted) {
     final Recipe recipe = recipeRepository.save(Recipe.builder()
         .title(extracted.title())
         .description(extracted.description())

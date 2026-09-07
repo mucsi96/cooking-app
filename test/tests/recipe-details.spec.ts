@@ -45,3 +45,28 @@ test('does not decrease servings below one', async ({ page }) => {
   await expect(decrease).toBeDisabled();
   await expect(page.getByText('125 g')).toBeVisible();
 });
+
+test('opens phone printing and provides a toner-friendly print layout', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
+  await page.evaluate(() => {
+    Object.defineProperty(window, 'print', {
+      configurable: true,
+      value: () => document.body.setAttribute('data-print-opened', 'true'),
+    });
+  });
+  await page.getByRole('button', { name: 'Nyomtatás' }).click();
+  await expect(page.locator('body')).toHaveAttribute('data-print-opened', 'true');
+
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
+  await expect(page.getByText('marhalábszár')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Fő navigáció' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Nyomtatás' })).toBeHidden();
+  await expect(page.getByRole('img', { name: 'Gulyásleves' })).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Borítókép' })).toBeHidden();
+  const printColors = await page.getByRole('heading', { name: 'Gulyásleves' }).evaluate((heading) => ({
+    background: getComputedStyle(document.body).backgroundColor,
+    text: getComputedStyle(heading).color,
+  }));
+  expect(printColors).toEqual({ background: 'rgb(255, 255, 255)', text: 'rgb(0, 0, 0)' });
+});
