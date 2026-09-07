@@ -1,10 +1,17 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { User } from 'oidc-client-ts';
+import { ErrorResponse, User } from 'oidc-client-ts';
 import { USER_MANAGER } from './auth.config';
 import { flushFaro } from './utils/faro';
 
 /** Leading-edge throttle window for the foreground proactive refresh. */
 const FOREGROUND_REFRESH_THROTTLE_MS = 30_000;
+const TERMINAL_REFRESH_ERRORS = new Set([
+  'invalid_grant',
+  'login_required',
+  'interaction_required',
+  'consent_required',
+  'account_selection_required',
+]);
 
 /**
  * Single owner of the OIDC session, built on oidc-client-ts with every
@@ -30,6 +37,7 @@ export class AuthService {
   private readonly user = signal<User | null>(null);
   private readonly authorityError = signal<string | null>(null);
   private inFlightRefresh: Promise<User | null> | null = null;
+  private redirectInProgress = false;
   private lastForegroundRefresh = 0;
   private returnedFromAuthority = false;
 
@@ -61,6 +69,10 @@ export class AuthService {
   }
 
   login(): void {
+    if (this.redirectInProgress) {
+      return;
+    }
+    this.redirectInProgress = true;
     this.authorityError.set(null);
     // Capture the deep link before the router resets the URL on a cancelled
     // navigation - the redirect_uri itself is always the origin, so the
@@ -71,14 +83,13 @@ export class AuthService {
     );
     // Await pending logs reaching the backend before navigating away.
     flushFaro().finally(() => {
-      this.userManager
-        .signinRedirect({ state: returnTo })
-        .catch((error) =>
+      this.userManager.signinRedirect({ state: returnTo }).catch((error) => {
+        this.redirectInProgress = false;
         console.error(
           '[auth] signinRedirect failed',
           JSON.stringify({ error: errorMessage(error) })
-        )
-      );
+        );
+      });
     });
   }
 
@@ -179,6 +190,23 @@ export class AuthService {
       this.inFlightRefresh = null;
     });
     return this.inFlightRefresh;
+  }
+
+  reauthenticateAfterRefreshFailure(error: unknown): boolean {
+    if (
+      !(error instanceof ErrorResponse) ||
+      !error.error ||
+      !TERMINAL_REFRESH_ERRORS.has(error.error)
+    ) {
+      return false;
+    }
+
+    console.warn(
+      '[auth] Refresh can no longer recover the session - starting full re-authentication',
+      JSON.stringify({ error: error.error })
+    );
+    this.login();
+    return true;
   }
 
   private async runRefresh(reason: string): Promise<User | null> {
@@ -299,8 +327,9 @@ export class AuthService {
     console.info(
       '[auth] Cold start - proactively refreshing access token using stored refresh token'
     );
-    // Failure is already logged inside runRefresh; swallow so it stays proactive.
-    await this.refresh('cold-start').catch(() => null);
+    await this.refresh('cold-start').catch((error) => {
+      this.reauthenticateAfterRefreshFailure(error);
+    });
   }
 
   private installForegroundRefresh(): void {
@@ -356,7 +385,9 @@ export class AuthService {
     console.info(
       '[auth] Proactively refreshing access token using stored refresh token'
     );
-    await this.refresh('foreground').catch(() => null);
+    await this.refresh('foreground').catch((error) => {
+      this.reauthenticateAfterRefreshFailure(error);
+    });
   }
 }
 
