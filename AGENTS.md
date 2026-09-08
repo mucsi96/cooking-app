@@ -114,13 +114,13 @@ cd test && npx playwright test --ui  # Interactive test runner
 ## API Routes
 
 - `GET /api/environment` - Client configuration (public)
-- `GET /api/recipes` - Recipe list for the category overview (RecipeReader)
-- `GET /api/recipes/{id}` - Recipe details (RecipeReader)
-- `POST /api/recipes/import` - Import a recipe from free text in any language; also used by the email pipeline (RecipeCreator)
-- `GET /api/recipes/{id}/images` - Thumbnail candidate statuses (RecipeReader)
-- `POST /api/recipes/{id}/images` - Generate a new batch of thumbnail candidates (RecipeCreator)
-- `PUT /api/recipes/{id}/image` - Pick the favorite thumbnail (RecipeCreator)
-- `GET /api/images/{id}` - Serve a generated webp image (RecipeReader)
+- `GET /api/recipes` - Recipe list for the category overview (`readRecipes`)
+- `GET /api/recipes/{id}` - Recipe details (`readRecipes`)
+- `POST /api/recipes/import` - Import a recipe from free text in any language; also used by the email pipeline (`createRecipe`)
+- `GET /api/recipes/{id}/images` - Thumbnail candidate statuses (`readRecipes`)
+- `POST /api/recipes/{id}/images` - Generate a new batch of thumbnail candidates (`createRecipe`)
+- `PUT /api/recipes/{id}/image` - Pick the favorite thumbnail (`createRecipe`)
+- `GET /api/images/{id}` - Serve a generated webp image (`readRecipes`)
 
 ## Data Model
 

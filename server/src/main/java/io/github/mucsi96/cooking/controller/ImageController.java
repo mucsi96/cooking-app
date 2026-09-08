@@ -22,7 +22,7 @@ public class ImageController {
   private final FileStorageService fileStorageService;
 
   @GetMapping(value = "/images/{id}", produces = IMAGE_WEBP_VALUE)
-  @PreAuthorize("hasAuthority('APPROLE_RecipeReader') and hasAuthority('SCOPE_readRecipes')")
+  @PreAuthorize("hasAuthority('APPROLE_readRecipes')")
   public ResponseEntity<byte[]> getImage(@PathVariable UUID id) {
     final byte[] data = fileStorageService.fetchFile("images/%s.webp".formatted(id));
     return ResponseEntity.ok()
