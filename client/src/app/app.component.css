@@ -1,6 +1,7 @@
 .header {
   background: color-mix(in srgb, var(--bt-surface-1) 88%, transparent);
-  backdrop-filter: blur(18px) saturate(140%);
+  /* Keep this ancestor free of filters so the fixed mobile navigation stays
+     anchored to the viewport instead of covering the header. */
   border-bottom: 1px solid var(--bt-outline);
   display: block;
   /* Let the toolbar grow by the status-bar inset instead of letting the
