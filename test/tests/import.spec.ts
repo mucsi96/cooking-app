@@ -63,6 +63,19 @@ test('recognizes and imports a recipe from an existing photo', async ({ page }) 
   await expect(page.getByText('marhalábszár')).toBeVisible();
 });
 
+test('shows an error for an inaccessible recipe URL and allows retrying with text', async ({ page }) => {
+  await page.goto('/importalas');
+  await page.getByLabel('Recept szövege vagy webcíme').fill('http://127.0.0.1/recipe');
+  await page.getByRole('button', { name: 'Importálás' }).click();
+
+  await expect(page.getByRole('alert')).toContainText('Ellenőrizd a hivatkozást');
+  await expect(page.getByRole('button', { name: 'Importálás' })).toBeEnabled();
+
+  await page.getByLabel('Recept szövege vagy webcíme').fill(ENGLISH_GOULASH_TEXT);
+  await page.getByRole('button', { name: 'Importálás' }).click();
+  await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
+});
+
 test('offers the rear camera and lets the user remove a selected photo', async ({ page }) => {
   await page.goto('/importalas');
 

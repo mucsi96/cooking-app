@@ -77,7 +77,7 @@ export class ImportComponent {
       const recipe = await this.recipeService.importRecipe(this.text());
       await this.finishImport(recipe);
     } catch {
-      this.error.set('A recept feldolgozása nem sikerült. Próbáld újra.');
+      this.error.set('A recept feldolgozása nem sikerült. Ellenőrizd a hivatkozást, vagy másold be a recept szövegét, és próbáld újra.');
     } finally {
       this.importing.set(false);
     }

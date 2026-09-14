@@ -2,7 +2,7 @@
   <p class="eyebrow">Új recept</p>
   <h1>Hogyan adnád hozzá?</h1>
   <p class="hint">
-    Fotózd le a receptet, válassz egy korábbi képet, vagy illeszd be a szövegét.
+    Fotózd le a receptet, válassz egy korábbi képet, vagy illeszd be a szövegét vagy webcímét.
     Az eredményt magyarul mentjük el.
   </p>
 </header>
@@ -63,16 +63,16 @@
 <div class="divider"><span>vagy</span></div>
 
 <section aria-labelledby="text-title">
-  <h2 id="text-title">Beillesztés szövegből</h2>
+  <h2 id="text-title">Beillesztés szövegből vagy hivatkozásból</h2>
   <mat-form-field appearance="outline" class="text-field">
-    <mat-label>Recept szövege</mat-label>
+    <mat-label>Recept szövege vagy webcíme</mat-label>
     <textarea
       matInput
       rows="10"
       [ngModel]="text()"
       (ngModelChange)="text.set($event)"
       [disabled]="importing()"
-      placeholder="Illeszd be ide a recept szövegét bármilyen nyelven..."
+      placeholder="Illeszd be a recept szövegét bármilyen nyelven, vagy a https:// kezdetű webcímét..."
     ></textarea>
   </mat-form-field>
 

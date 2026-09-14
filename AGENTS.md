@@ -57,6 +57,9 @@ Recipe collection application based on the patterns of
   translates it to Hungarian
 - The same import endpoint accepts plain text over the API, which drives
   the email-based import pipeline
+- Pasting a full HTTP(S) URL into the import field (or sending it as `text` to
+  the import API) fetches the public page's text and JSON-LD metadata before AI
+  extraction. Fetches are size- and time-limited; redirects are validated too.
 - Thumbnails are generated asynchronously (several candidates per recipe,
   following the [learn-language](https://github.com/mucsi96/learn-language)
   approach); the user picks their favorite
