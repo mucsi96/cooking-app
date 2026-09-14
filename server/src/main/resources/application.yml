@@ -42,7 +42,7 @@ spring:
     openai:
       api-key: ${openai-api-key}
       image:
-        model: gpt-image-1
+        model: gpt-image-2.5-sunburst
 storage:
   directory: ${STORAGE_DIRECTORY}
 server:
