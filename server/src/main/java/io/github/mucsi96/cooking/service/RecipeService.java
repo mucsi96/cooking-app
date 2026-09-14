@@ -36,6 +36,7 @@ public class RecipeService {
 
   private final RecipeRepository recipeRepository;
   private final RecipeImportService recipeImportService;
+  private final RecipePageService recipePageService;
   private final FfmpegService ffmpegService;
   private final ImageGenerationJobService imageGenerationJobService;
   private final AsyncImageGenerationService asyncImageGenerationService;
@@ -54,7 +55,7 @@ public class RecipeService {
   }
 
   public RecipeResponse importRecipe(String text) {
-    return importRecipe(recipeImportService.extract(text));
+    return importRecipe(recipeImportService.extract(recipePageService.resolve(text)));
   }
 
   public RecipeResponse importRecipeImage(MultipartFile image) {
