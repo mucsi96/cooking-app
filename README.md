@@ -35,7 +35,6 @@ server/internal/recipe/    domain types, persistence, URL import, image workers
 server/internal/ai/        Anthropic extraction and OpenAI image generation
 server/internal/media/     photo normalization and atomic WebP storage
 server/internal/httpapi/   Gin routes, bearer authentication, health probes
-server/helm/               production API chart
 ```
 
 ## Features and API
@@ -173,7 +172,7 @@ read at startup. Explicit environment variables override Key Vault values.
 | `OPENAI_IMAGE_MODEL` | `gpt-image-2.5-sunburst` |
 | `STORAGE_DIRECTORY` | `./storage`; mount persistent storage in production |
 | `SERVER_PORT` | 8063 locally, 8080 in the image |
-| `MANAGEMENT_PORT` | 8162 locally, 8081 in the image |
+| `MANAGEMENT_PORT` | 8162 locally, 8081 in the image; shared chart sets 8082 |
 | `CLIENT_LOG_URL` | `client-log-url`; optional when Key Vault is disabled |
 | `CLIENT_APP_NAME` | `cooking-client` |
 
@@ -181,7 +180,7 @@ Azure credentials use `DefaultAzureCredential`, supporting local Azure CLI login
 and Kubernetes workload identity. Configuration failures abort startup.
 
 Health checks live on the management listener:
-`/actuator/health/liveness` and `/actuator/health/readiness`. Readiness checks
+`/health/liveness` and `/health/readiness`. Readiness checks
 PostgreSQL. Logs are structured JSON via `log/slog`.
 
 ## Existing installations and deployment
@@ -194,13 +193,20 @@ intact; subsequent migrations use Goose's own version table. Existing JDBC
 
 Build the server with `podman build -t cooking-app-server server`; no profile
 build argument is needed. Replace `SPRING_ACTUATOR_PORT` with `MANAGEMENT_PORT`
-in custom deployment configurations. The API chart preserves the existing
+in custom deployment configurations. The shared `mucsi96/go-app` chart preserves the existing
 release name, workload identity service account and `cooking-pvc` volume.
 
 The GitHub pipeline runs Playwright E2E tests, publishes versioned images and
 tags the exact built commit using `target_commitish`. `scripts/deploy.sh` uses
-the local Go API chart and the shared `mucsi96/client-app` chart. The container's
+the shared `mucsi96/go-app` and `mucsi96/client-app` charts. The container's
 `GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
+
+The Go chart lives in
+[`k8s-helm-charts/charts/go_app`](https://github.com/mucsi96/k8s-helm-charts/tree/main/charts/go_app)
+and is based on its Spring chart, retaining the same environment, config-file,
+PVC, identity and resource values. Publish `go-app` from that repository before
+deploying this migration. `scripts/deploy.sh` resolves its latest published
+version through the shared Helm repository, just as it did for `spring-app`.
 
 ### Default ports
 

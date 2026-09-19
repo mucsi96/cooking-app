@@ -26,23 +26,42 @@ serverLatestTag=$(curl -s "https://registry.hub.docker.com/v2/repositories/$DOCK
 clientLatestTag=$(curl -s "https://registry.hub.docker.com/v2/repositories/$DOCKERHUB_USERNAME/cooking-app-client/tags" | jq -r '.results | map(select(.name != "latest")) | sort_by(.last_updated) | reverse | .[0].name')
 
 echo "Updating Helm repositories..."
+# The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
 helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 
+goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -r '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
 
-echo "Deploying Go server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag"
+echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag using go-app chart $goAppChartVersion"
 
-helm upgrade $SERVER_RELEASE_NAME "$(dirname "$0")/../server/helm" \
+# CPU limits are intentionally omitted for both services (limits.cpu=null
+# clears the chart default): on a single-user node they only throttle
+# startup and the ffmpeg runs; memory limits are the ones that matter.
+#
+# The Go executable uses GOMEMLIMIT=256MiB (see server/Dockerfile). The 768Mi
+# container limit also leaves room for ffmpeg image conversion subprocesses.
+helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --install \
+    --version $goAppChartVersion \
     --set image=$DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag \
+    --set entryPoint=web \
     --set host=$HOSTNAME \
-    --set serviceAccountName=cooking-api-workload-identity \
+    --set basePath=/api \
     --set clientId=$API_CLIENT_ID \
+    --set serviceAccountName=cooking-api-workload-identity \
     --set env.AZURE_KEYVAULT_ENDPOINT=$AZURE_KEYVAULT_ENDPOINT \
     --set env.CLIENT_APP_NAME=$CLIENT_RELEASE_NAME \
+    --set env.STORAGE_DIRECTORY=/app/storage \
+    --set persistentVolumeClaims[0].name=cooking-pvc \
+    --set persistentVolumeClaims[0].accessMode=ReadWriteOnce \
+    --set persistentVolumeClaims[0].volumeName=cooking-app \
+    --set persistentVolumeClaims[0].mountPath=/app/storage \
+    --set persistentVolumeClaims[0].storageClassName="" \
+    --set persistentVolumeClaims[0].storage=5Gi \
     --set resources.requests.memory=128Mi \
     --set resources.requests.cpu=25m \
     --set resources.limits.memory=768Mi \
+    --set resources.limits.cpu=null \
     --wait
 
 echo "Deploying client: $DOCKERHUB_USERNAME/cooking-app-client:$clientLatestTag using client-app chart $clientAppChartVersion"

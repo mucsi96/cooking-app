@@ -205,11 +205,11 @@ func (a API) extract(c *gin.Context, text string, photo []byte) {
 
 func Health(ping func(context.Context) error) http.Handler {
 	r := http.NewServeMux()
-	r.HandleFunc("GET /actuator/health/liveness", func(w http.ResponseWriter, _ *http.Request) {
+	r.HandleFunc("GET /health/liveness", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `{"status":"UP"}`)
 	})
-	r.HandleFunc("GET /actuator/health/readiness", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("GET /health/readiness", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		w.Header().Set("Content-Type", "application/json")

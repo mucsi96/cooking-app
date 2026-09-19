@@ -142,7 +142,7 @@ spec:
           mountPath: /storage
       livenessProbe:
         httpGet:
-          path: /actuator/health/readiness
+          path: /health/readiness
           port: 8162
         # Readiness waits for the database, SQL migrations and OIDC discovery.
         initialDelaySeconds: 2

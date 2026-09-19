@@ -70,7 +70,7 @@
 - `server/internal/ai/`: recipe extraction and image generation SDK adapters.
 - `server/internal/media/`: ffmpeg photo normalization and atomic WebP storage.
 - `server/internal/httpapi/`: Gin routes, role/scope checks and health probes.
-- `server/helm/`: production Go API Helm chart.
+- Production API chart: `charts/go_app/` in the shared `k8s-helm-charts` project.
 - `mock_anthropic_server/`, `mock_openai_server/`: Express mocks of provider APIs.
 - `test/`: Playwright desktop/mobile E2E tests.
 - `scripts/`, `.github/workflows/`: development, build, tests and deployment.
@@ -98,11 +98,13 @@ Authentication stays enabled during tests, using a mock OIDC provider.
 - One Go binary/image works in every environment; configuration is runtime-only.
 - Explicit environment variables override Key Vault values. See `server/.env.example`
   and README for variables and secrets. Never commit `server/.env`.
-- Health endpoints are `/actuator/health/liveness` and
-  `/actuator/health/readiness` on `MANAGEMENT_PORT`.
+- Health endpoints are `/health/liveness` and
+  `/health/readiness` on `MANAGEMENT_PORT`.
 - Images live under `STORAGE_DIRECTORY/images/{uuid}.webp` on a persistent volume.
-- API releases use the local Helm chart, preserving `cooking-pvc` and the workload
-  identity service account. Client releases use the shared client-app chart.
+- API releases use the shared `mucsi96/go-app` chart (based on `spring-app`),
+  preserving `cooking-pvc` and the workload identity service account. Client
+  releases use the shared `mucsi96/client-app` chart. Keep `scripts/deploy.sh`
+  aligned with the original shared-chart workflow and values.
 - Release tags must point at the image's commit: `target_commitish: ${{ github.sha }}`.
   Component releases are skipped when their directory has not changed since its tag.
 
