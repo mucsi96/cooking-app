@@ -6,7 +6,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
-import { Recipe, RecipeService } from '../recipe.service';
+import { Recipe } from '../recipe.model';
+import { RecipeService } from '../recipe.service';
 
 const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 

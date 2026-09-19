@@ -18,12 +18,10 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-go@v6
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'maven'
-          cache-dependency-path: 'server/pom.xml'
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
       - uses: actions/setup-node@v6
         with:
           node-version: 22

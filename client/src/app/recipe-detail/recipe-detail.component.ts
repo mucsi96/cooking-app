@@ -4,16 +4,15 @@ import {
   computed,
   inject,
   linkedSignal,
-  resource,
+  input,
   signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { httpResource } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { ActivatedRoute } from '@angular/router';
 import { BarLoaderComponent } from '@mucsi96/angular-material-theme';
-import { map } from 'rxjs';
+import { CandidateImage, Recipe } from '../recipe.model';
 import { RecipeImageComponent } from '../recipe-image/recipe-image.component';
 import { RecipeService } from '../recipe.service';
 import { formatAmount, scaleAmount } from '../utils/formatAmount';
@@ -34,29 +33,19 @@ const CANDIDATE_POLL_INTERVAL_MS = 1000;
 })
 export class RecipeDetailComponent {
   private readonly recipeService = inject(RecipeService);
-  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly recipeId = toSignal(
-    this.route.paramMap.pipe(map((params) => params.get('id')!)),
-    { initialValue: this.route.snapshot.paramMap.get('id')! }
+  readonly id = input.required<string>();
+  readonly recipe = httpResource<Recipe>(() => `/api/recipes/${this.id()}`);
+  readonly candidates = httpResource<readonly CandidateImage[]>(
+    () => `/api/recipes/${this.id()}/images`
   );
 
-  readonly recipe = resource({
-    params: () => ({ id: this.recipeId() }),
-    loader: ({ params }) => this.recipeService.getRecipe(params.id),
-  });
-
-  readonly candidates = resource({
-    params: () => ({ id: this.recipeId() }),
-    loader: ({ params }) => this.recipeService.getCandidateImages(params.id),
-  });
-
-  readonly servings = linkedSignal(() => this.recipe.value()?.servings ?? 1);
+  readonly servings = linkedSignal(() => this.recipe.hasValue() ? this.recipe.value().servings : 1);
   readonly generating = signal(false);
 
   readonly scaledIngredients = computed(() => {
-    const recipe = this.recipe.value();
+    const recipe = this.recipe.hasValue() ? this.recipe.value() : undefined;
     if (!recipe) {
       return [];
     }
@@ -74,7 +63,8 @@ export class RecipeDetailComponent {
   constructor() {
     const pollHandle = setInterval(() => {
       if (
-        this.candidates.value()?.some((c) => c.status === 'PENDING') &&
+        this.candidates.hasValue() &&
+        this.candidates.value().some((c) => c.status === 'PENDING') &&
         !this.candidates.isLoading()
       ) {
         this.candidates.reload();
@@ -96,7 +86,7 @@ export class RecipeDetailComponent {
   }
 
   async selectImage(imageId: string): Promise<void> {
-    await this.recipeService.selectImage(this.recipeId(), imageId);
+    await this.recipeService.selectImage(this.id(), imageId);
     this.recipe.reload();
     this.recipeService.recipes.reload();
   }
@@ -104,7 +94,7 @@ export class RecipeDetailComponent {
   async generateImages(): Promise<void> {
     this.generating.set(true);
     try {
-      await this.recipeService.generateCandidateImages(this.recipeId());
+      await this.recipeService.generateCandidateImages(this.id());
       this.candidates.reload();
     } finally {
       this.generating.set(false);

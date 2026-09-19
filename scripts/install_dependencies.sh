@@ -1,23 +1,11 @@
 #!/bin/sh
+set -eu
 
-set -e  # Exit immediately if a command exits with a non-zero status
+PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
-# System tooling (JDK 21, Maven, Node, jq, kubectl, helm, azure-cli) is provided
-# by the Nix flake dev shell — run `nix develop`, or let direnv load it via the
-# `.envrc`. Podman is a distro-level prerequisite (e.g. `apt install podman` on
-# WSL). This script only installs the per-project dependencies.
-
-echo "Building server..."
-cd server && mvn clean install && cd ..
-
-echo "Installing client dependencies..."
-cd client && npm install && cd ..
-
-echo "Installing mock Anthropic server dependencies..."
-cd mock_anthropic_server && npm install && cd ..
-
-echo "Installing mock OpenAI server dependencies..."
-cd mock_openai_server && npm install && cd ..
-
-echo "Installing test dependencies..."
-cd test && npm install && npx playwright install --with-deps chromium && cd ..
+# Go, Node and ffmpeg are supplied by nix develop; Podman is installed by the OS.
+(cd "$PROJECT_DIR/server" && go mod download && go build ./...)
+for project in client mock_anthropic_server mock_openai_server test; do
+  (cd "$PROJECT_DIR/$project" && npm ci)
+done
+(cd "$PROJECT_DIR/test" && npx playwright install --with-deps chromium)

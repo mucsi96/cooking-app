@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cooking-api
+description: Go recipe API with Azure workload identity and persistent image storage
+type: application
+version: 1.0.0

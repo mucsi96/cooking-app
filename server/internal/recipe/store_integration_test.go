@@ -1,0 +1,86 @@
+package recipe_test
+
+import (
+	"context"
+	"errors"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/mucsi96/cooking-app/server/internal/config"
+	"github.com/mucsi96/cooking-app/server/internal/database"
+	"github.com/mucsi96/cooking-app/server/internal/recipe"
+)
+
+func TestRecipePersistence(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("set TEST_DATABASE_URL to an isolated PostgreSQL database")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	c := config.Config{DatabaseURL: url}
+	pool, err := database.Open(ctx, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+	store := &recipe.Store{DB: pool}
+	amount := 500.0
+	unit := "g"
+	content := recipe.Content{Title: "Gulyás", Description: "Magyar leves", Category: "Leves", Servings: 4, Ingredients: []recipe.Ingredient{{Name: "hús", Amount: &amount, Unit: &unit}, {Name: "só"}}, Steps: []string{"Pirítsd meg.", "Főzd puhára."}}
+	created, err := store.Create(ctx, content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(context.Background(), "DELETE FROM cooking.recipes WHERE id=$1", created.ID)
+	loaded, err := store.Get(ctx, created.ID)
+	if err != nil || len(loaded.Ingredients) != 2 || loaded.Ingredients[1].Amount != nil || loaded.Steps[1] != "Főzd puhára." {
+		t.Fatalf("recipe did not round-trip: %+v %v", loaded, err)
+	}
+	jobs, err := store.Candidates(ctx, created.ID)
+	if err != nil || len(jobs) != 3 {
+		t.Fatalf("expected three durable candidates: %v %v", jobs, err)
+	}
+	if err := store.SelectImage(ctx, created.ID, jobs[0].ID); !errors.Is(err, recipe.ErrInvalidImage) {
+		t.Fatalf("selected pending image: %v", err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE cooking.image_generation_jobs SET status='COMPLETED' WHERE id=$1", jobs[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SelectImage(ctx, created.ID, jobs[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	// Starting a second instance must preserve all existing data and image choices.
+	second, err := database.Open(ctx, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	loaded, err = (&recipe.Store{DB: second}).Get(ctx, created.ID)
+	if err != nil || loaded.ImageID == nil || *loaded.ImageID != jobs[0].ID {
+		t.Fatalf("migration changed existing data: %+v %v", loaded, err)
+	}
+	if _, err := store.Get(ctx, uuid.NewString()); !errors.Is(err, recipe.ErrNotFound) {
+		t.Fatalf("missing recipe: %v", err)
+	}
+	if _, err := store.Generate(ctx, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	jobs, err = store.Candidates(ctx, created.ID)
+	if err != nil || len(jobs) != 6 {
+		t.Fatalf("regeneration did not append candidates: %v %v", jobs, err)
+	}
+	// A database error in an ingredient must roll back the parent recipe and jobs.
+	tooLarge := 1e12
+	content.Title = "Must roll back"
+	content.Ingredients = []recipe.Ingredient{{Name: "hús", Amount: &tooLarge}}
+	if _, err := store.Create(ctx, content); err == nil {
+		t.Fatal("expected numeric overflow")
+	}
+	var count int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM cooking.recipes WHERE title='Must roll back'").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("partial recipe was persisted: %d %v", count, err)
+	}
+}

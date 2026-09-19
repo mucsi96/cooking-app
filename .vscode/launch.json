@@ -30,12 +30,12 @@
       "type": "node"
     },
     {
-      "type": "java",
+      "type": "go",
       "name": "Start server",
       "request": "launch",
       "cwd": "${workspaceFolder}/server",
-      "mainClass": "io.github.mucsi96.cooking.CookingApplication",
-      "args": "--spring.profiles.active=local",
+      "program": "${workspaceFolder}/server/cmd/server",
+      "envFile": "${workspaceFolder}/server/.env",
       "env": {
         "AZURE_KEYVAULT_ENDPOINT": "https://p06-cooking.vault.azure.net"
       }

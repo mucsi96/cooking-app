@@ -1,7 +1,9 @@
 .env
+server/.env
 postgres-data
 server/storage
 server/target
+server/bin
 test/
 .vscode/
 .venv/

@@ -1,118 +1,196 @@
 # Cooking App
 
-Recipe collection app with AI-powered import. All recipes are stored and
-displayed in Hungarian; the imported text can be in any language.
+Hungarian recipe collection with AI-powered import from text, public web pages,
+and photos. Recipes are grouped by category, ingredient quantities scale with
+servings, and users choose from asynchronously generated food photographs.
 
-Based on [skeleton-app](https://github.com/mucsi96/skeleton-app), with the
-AI image generation approach of
-[learn-language](https://github.com/mucsi96/learn-language).
+## Architecture
 
-## Features
+The application follows [skeleton-app](https://github.com/mucsi96/skeleton-app)
+(reference reviewed at `b1ef96af3c6c406197aa2465946e429c3f750dd6`): an Angular
+SPA bootstrapped from `/api/environment`, Azure AD authentication, PostgreSQL,
+mock AI services, Playwright tests, Podman development and versioned container
+releases deployed through Helm and Traefik.
 
-- **Category overview** - Recipes grouped by Hungarian categories (Leves,
-  Főétel, Desszert, ...) with AI-generated thumbnails
-- **Recipe details** - Title, description, ingredients, steps and number of
-  servings; adjusting the servings rescales the ingredient amounts
-- **AI import** - Paste recipe text in any language (English, German,
-  Hungarian, ...); Anthropic Claude extracts a structured recipe and
-  translates it to Hungarian before it is persisted
-- **API import** - The same endpoint accepts plain text over the API
-  (`POST /api/recipes/import` with `{"text": "..."}`), which drives the
-  email-based import pipeline
-- **Thumbnail candidates** - Several images are generated right away
-  (Claude writes the food-photo scene description, the OpenAI image API
-  renders it, ffmpeg resizes to webp); the user picks their favorite
+| Component | Technology |
+| --- | --- |
+| Client | Angular 22, standalone components, signals and HTTP resources |
+| UI | Angular Material and `@mucsi96/angular-material-theme`, Hungarian dark theme |
+| API | Go 1.26, Gin, explicit dependency injection |
+| Database | PostgreSQL 17, pgx connection pool, embedded Goose SQL migrations |
+| Authentication | OIDC JWT validation with `go-oidc`; MSAL/Azure AD in the browser |
+| Secrets | Official Azure Identity and Key Vault SDKs |
+| AI | Official Anthropic and OpenAI Go SDKs |
+| Images | Bounded PostgreSQL-backed worker pool, ffmpeg, persistent WebP files |
+| Tests | Go tests, PostgreSQL integration tests, Playwright desktop/mobile E2E |
+| Deployment | Multi-stage Go/Alpine and Angular/nginx images, Helm, Traefik Gateway API |
 
-## Stack
+The backend is organized by responsibility:
 
-- **Client** - Angular 22 with Material UI dark theme (Hungarian UI)
-- **Server** - Spring Boot 4 with Java 21, Spring AI (Anthropic), openai-java, compiled ahead of time into a GraalVM native image
-- **Database** - PostgreSQL with Spring Data JPA and Liquibase
-- **Authentication** - Azure AD (MSAL) with conditional mock auth for testing
-- **Configuration** - Azure Key Vault + Spring profiles (prod/local/test)
-- **AI Mocking** - Express mock servers for the Anthropic and OpenAI APIs
-- **Testing** - Playwright E2E tests
-- **Deployment** - Docker multi-stage builds with Traefik reverse proxy
-
-## One image per Spring profile
-
-The server is shipped as a GraalVM native executable. Bean definitions are
-resolved during ahead-of-time processing at build time, so the active Spring
-profile is baked into the executable and cannot be chosen at startup any more.
-The server image is therefore built once per profile, via the `SPRING_PROFILE`
-build argument:
-
-```bash
-podman build --build-arg SPRING_PROFILE=test -t cooking-app-server:test server   # e2e pod
-podman build --build-arg SPRING_PROFILE=prod -t cooking-app-server:prod server   # published image
+```text
+server/cmd/server/          startup, dependency wiring, graceful shutdown
+server/internal/config/    environment and Key Vault configuration
+server/internal/database/  pgx pool and embedded versioned SQL migrations
+server/internal/recipe/    domain types, persistence, URL import, image workers
+server/internal/ai/        Anthropic extraction and OpenAI image generation
+server/internal/media/     photo normalization and atomic WebP storage
+server/internal/httpapi/   Gin routes, bearer authentication, health probes
+server/helm/               production API chart
 ```
 
-`SPRING_PROFILES_ACTIVE` is not read at runtime; the pipeline builds the test
-image for the e2e job and the prod image when publishing to Docker Hub. Running
-the server on a JVM for local development is unaffected - `mvn spring-boot:run
--Dspring-boot.run.profiles=local` still selects the profile the usual way.
+## Features and API
 
-## Port Mapping
+All protected endpoints require a signed, unexpired bearer token with the
+configured issuer and audience, the `api-access` scope, and the indicated role.
+Tests exercise the same authentication using a local OIDC provider.
 
-All host-exposed ports use the **xx60–xx69** range for their last two digits
-to avoid clashes with other local projects.
+| Method | Path | Role |
+| --- | --- | --- |
+| GET | `/api/environment` | Public |
+| GET | `/api/recipes` | `readRecipes` |
+| GET | `/api/recipes/{id}` | `readRecipes` |
+| POST | `/api/recipes/import` | `createRecipe` |
+| POST | `/api/recipes/import/image` | `createRecipe` |
+| GET | `/api/recipes/{id}/images` | `readRecipes` |
+| POST | `/api/recipes/{id}/images` | `createRecipe` |
+| PUT | `/api/recipes/{id}/image` | `createRecipe` |
+| GET | `/api/images/{id}` | `readRecipes` |
 
-| Port | Service              | Context                             |
-|------|----------------------|-------------------------------------|
-| 3060 | Mock Anthropic API   | Test pod                            |
-| 3061 | Mock OpenAI API      | Test pod                            |
-| 4260 | Angular dev server   | Local dev                           |
-| 5460 | PostgreSQL           | Dev database                        |
-| 5461 | PostgreSQL           | Test pod                            |
-| 8060 | Mock OAuth2 provider | Test pod                            |
-| 8063 | Spring Boot server   | Local dev (VSCode)                  |
-| 8064 | Spring Boot server   | Test pod (internal, behind Traefik) |
-| 8160 | Traefik (web)        | Test pod                            |
-| 8161 | Traefik (admin)      | Test pod                            |
-| 8162 | Spring Actuator      | Local dev & test                    |
+Text import accepts `{"text":"recipe text or https://example.com/recipe"}`.
+This is also the API used by the email import pipeline. Photo import accepts
+multipart form field `image` (maximum 15 MiB). Photo bytes are checked and
+normalized to JPEG before being sent to Claude. Image selection accepts
+`{"imageId":"uuid"}` and returns HTTP 204.
 
-## Development Environment
+URL imports retain page text and JSON-LD recipe metadata. They allow public
+HTTP(S) addresses only, pin connections to validated IP addresses, validate
+redirects, and enforce a 15-second timeout and 2 MiB download limit.
 
-System tooling (JDK 21, Maven, Node, jq, kubectl, helm, azure-cli) is provided by
-a Nix flake dev shell:
+Each import creates three durable image jobs in the same transaction as the
+recipe. Three workers claim jobs using PostgreSQL `FOR UPDATE SKIP LOCKED`,
+generate a scene with Claude, render it with OpenAI and atomically write WebP
+thumbnails. Failures are visible as `FAILED`; interrupted jobs remain `PENDING`
+and resume after restart. Image generation does not hold up the import response.
+
+## Development
+
+Install Podman using your operating system, then enter the Nix shell:
 
 ```bash
-nix develop          # enter the dev shell manually
-# or, with direnv installed, `direnv allow` once and it loads automatically
-```
-
-Then install the per-project dependencies:
-
-```bash
+nix develop
 scripts/install_dependencies.sh
 ```
 
-**Podman** is a distro-level prerequisite and is not managed by the flake
-(rootless Podman needs setuid `newuidmap`/`newgidmap` helpers the Nix store
-cannot provide). On WSL, enable `systemd=true` in `/etc/wsl.conf` and install it
-via your distro, e.g. `apt install podman`.
+The shell supplies Go, gopls, Delve, Node, ffmpeg, jq, kubectl, Helm and Azure CLI.
 
-**ffmpeg** is required by the server for webp thumbnail conversion (installed
-in the server's Alpine runtime image; install it locally for the local profile).
-
-## Quick Start
+### Full test stack
 
 ```bash
-# Start test stack
 scripts/pod_up.sh
-
-# Run E2E tests
-cd test && npm test
+cd test
+npm test
 ```
 
-## Production Secrets
+Open `http://localhost:8160`. `scripts/pod_down.sh` removes the test pod.
+Set `SKIP_BUILD=1` to reuse already built images.
 
-Azure Key Vault must provide, in addition to the skeleton-app secrets:
+### Local API and frontend
 
-- `claude-api-key` - Anthropic API key (recipe extraction and image scene descriptions)
-- `openai-api-key` - OpenAI API key (thumbnail generation)
+```bash
+scripts/dev_db_up.sh
+cd server
+# Set configuration using .env.example, or Azure Key Vault and az login.
+set -a
+source .env
+set +a
+go run ./cmd/server
+```
 
-The server also needs a `STORAGE_DIRECTORY` environment variable pointing at a
-persistent volume for the generated webp images.
+In another terminal, run `npm start` from `client/`. The dev server on port 4260
+proxies `/api` to port 8063. VS Code includes a Go debugger configuration using
+`server/.env`. That file is ignored by Git.
 
-See @AGENTS.md
+### Checks
+
+```bash
+# From server/
+go vet ./...
+go test -race ./...
+# Enable persistence/migration tests against an isolated database:
+TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5460/cooking_test?sslmode=disable' go test -race ./...
+
+# From client/
+npm run build
+
+# From test/ with the test stack running
+npm test
+```
+
+Persistence tests skip unless `TEST_DATABASE_URL` is set. CI provides a dedicated
+PostgreSQL service and runs them before E2E tests. For an alternate test stack,
+Playwright accepts `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL` and
+`TEST_OPENAI_URL`.
+
+## Runtime configuration
+
+One Go binary and one container image serve all environments. Configuration is
+read at startup. Explicit environment variables override Key Vault values.
+
+| Environment variable | Key Vault secret / default |
+| --- | --- |
+| `AZURE_KEYVAULT_ENDPOINT` | Optional; enables loading the secrets below |
+| `DB_URL` | `db-url`; PostgreSQL connection URL |
+| `DB_USERNAME`, `DB_PASSWORD` | `db-username`, `db-password`; may also be in the URL |
+| `TENANT_ID` | `tenant-id` |
+| `API_CLIENT_ID` | `api-client-id`; expected access-token audience |
+| `SPA_CLIENT_ID` | `spa-client-id`; browser application ID |
+| `OIDC_ISSUER` | `https://login.microsoftonline.com/{TENANT_ID}/v2.0` |
+| `MOCK_OAUTH2_SERVER_URI` | Optional local browser OIDC provider URL |
+| `ANTHROPIC_API_KEY` | `claude-api-key` |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` (origin, without `/v1`) |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` |
+| `OPENAI_API_KEY` | `openai-api-key` |
+| `OPENAI_BASE_URL` | `https://api.openai.com` (origin, without `/v1`) |
+| `OPENAI_IMAGE_MODEL` | `gpt-image-2.5-sunburst` |
+| `STORAGE_DIRECTORY` | `./storage`; mount persistent storage in production |
+| `SERVER_PORT` | 8063 locally, 8080 in the image |
+| `MANAGEMENT_PORT` | 8162 locally, 8081 in the image |
+| `CLIENT_LOG_URL` | `client-log-url`; optional when Key Vault is disabled |
+| `CLIENT_APP_NAME` | `cooking-client` |
+
+Azure credentials use `DefaultAzureCredential`, supporting local Azure CLI login
+and Kubernetes workload identity. Configuration failures abort startup.
+
+Health checks live on the management listener:
+`/actuator/health/liveness` and `/actuator/health/readiness`. Readiness checks
+PostgreSQL. Logs are structured JSON via `log/slog`.
+
+## Existing installations and deployment
+
+The rewrite retains the `cooking` schema, UUIDs, table/column names and
+`images/{id}.webp` storage layout. The first Goose migration adopts existing
+tables without replacing records. Liquibase's bookkeeping tables are left
+intact; subsequent migrations use Goose's own version table. Existing JDBC
+`db-url` secrets are accepted, including `currentSchema` parameters.
+
+Build the server with `podman build -t cooking-app-server server`; no profile
+build argument is needed. Replace `SPRING_ACTUATOR_PORT` with `MANAGEMENT_PORT`
+in custom deployment configurations. The API chart preserves the existing
+release name, workload identity service account and `cooking-pvc` volume.
+
+The GitHub pipeline runs Go and browser tests, publishes versioned images and
+tags the exact built commit using `target_commitish`. `scripts/deploy.sh` uses
+the local Go API chart and the shared `mucsi96/client-app` chart. The container's
+`GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
+
+### Default ports
+
+| Port | Service |
+| --- | --- |
+| 3060 / 3061 | Mock Anthropic / OpenAI |
+| 4260 | Angular development server |
+| 5460 / 5461 | Development / test PostgreSQL |
+| 8060 | Mock OIDC provider |
+| 8063 / 8064 | Local / test API |
+| 8160 / 8161 | Test Traefik web / admin |
+| 8162 | Local / test health checks |

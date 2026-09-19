@@ -1,0 +1,15 @@
+image: ""
+host: ""
+serviceAccountName: cooking-api-workload-identity
+clientId: ""
+env: {}
+storage:
+  claimName: cooking-pvc
+  volumeName: cooking-app
+  size: 5Gi
+resources:
+  requests:
+    memory: 128Mi
+    cpu: 25m
+  limits:
+    memory: 768Mi
