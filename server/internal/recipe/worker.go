@@ -7,7 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ImageGenerator interface {
@@ -49,38 +50,41 @@ func (w *Worker) Run(ctx context.Context) {
 // transaction rolls back, making the pending job available on the next run.
 // SKIP LOCKED also supports multiple application replicas without duplicate work.
 func (w *Worker) process(ctx context.Context) (bool, error) {
-	tx, err := w.Store.DB.Begin(ctx)
-	if err != nil {
-		return false, err
-	}
-	defer tx.Rollback(context.Background())
-	var id, title, description string
-	err = tx.QueryRow(ctx, `SELECT j.id::text,r.title,r.description FROM cooking.image_generation_jobs j JOIN cooking.recipes r ON r.id=j.recipe_id WHERE j.status='PENDING' ORDER BY j.created_at,j.id LIMIT 1 FOR UPDATE OF j SKIP LOCKED`).Scan(&id, &title, &description)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	data, err := w.Generator.GenerateImage(jobCtx, title, description)
-	if err == nil {
-		err = w.Storage.SaveImage(jobCtx, id, data)
-	}
-	status := "COMPLETED"
-	var message *string
-	if err != nil {
-		if ctx.Err() != nil {
-			return true, ctx.Err()
+	worked := false
+	err := w.Store.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var job struct{ ID, Title, Description string }
+		err := tx.Table("cooking.image_generation_jobs AS j").Select("j.id, r.title, r.description").
+			Joins("JOIN cooking.recipes AS r ON r.id = j.recipe_id").Where("j.status = ?", "PENDING").
+			Order("j.created_at, j.id").
+			Clauses(clause.Locking{Strength: "UPDATE", Table: clause.Table{Name: "j"}, Options: "SKIP LOCKED"}).
+			Take(&job).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
 		}
-		slog.Error("image generation failed", "job", id, "error", err)
-		status = "FAILED"
-		text := "A kép elkészítése nem sikerült."
-		message = &text
-	}
-	if _, err := tx.Exec(ctx, "UPDATE cooking.image_generation_jobs SET status=$2,error=$3 WHERE id=$1", id, status, message); err != nil {
-		return true, err
-	}
-	return true, tx.Commit(ctx)
+		if err != nil {
+			return err
+		}
+		worked = true
+		jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		data, err := w.Generator.GenerateImage(jobCtx, job.Title, job.Description)
+		if err == nil {
+			err = w.Storage.SaveImage(jobCtx, job.ID, data)
+		}
+		status := "COMPLETED"
+		var message *string
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			slog.Error("image generation failed", "job", job.ID, "error", err)
+			status = "FAILED"
+			text := "A kép elkészítése nem sikerült."
+			message = &text
+		}
+		// A map includes nil error values, unlike struct Updates which skips zeros.
+		return tx.Model(&imageJobRecord{}).Where("id = ?", job.ID).
+			Updates(map[string]any{"status": status, "error": message}).Error
+	})
+	return worked, storeError("process image job", err)
 }

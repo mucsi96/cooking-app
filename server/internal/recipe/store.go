@@ -3,159 +3,130 @@ package recipe
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-type Store struct{ DB *pgxpool.Pool }
+type Store struct{ db *gorm.DB }
+
+func NewStore(db *gorm.DB) *Store { return &Store{db: db} }
+
+func storeError(operation string, err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", operation, err)
+	}
+	return nil
+}
 
 func (s *Store) List(ctx context.Context) ([]ListItem, error) {
-	rows, err := s.DB.Query(ctx, "SELECT id::text, title, category, image_id::text FROM cooking.recipes ORDER BY created_at, id")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	result := []ListItem{}
-	for rows.Next() {
-		var item ListItem
-		if err := rows.Scan(&item.ID, &item.Title, &item.Category, &item.ImageID); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
+	err := s.db.WithContext(ctx).Model(&recipeRecord{}).
+		Select("id", "title", "category", "image_id").Order("created_at, id").Find(&result).Error
+	return result, storeError("list recipes", err)
 }
 
 func (s *Store) Get(ctx context.Context, id string) (Recipe, error) {
-	r := Recipe{Content: Content{Ingredients: []Ingredient{}, Steps: []string{}}}
-	err := s.DB.QueryRow(ctx, `SELECT id::text, title, description, category, servings, image_id::text FROM cooking.recipes WHERE id=$1`, id).Scan(&r.ID, &r.Title, &r.Description, &r.Category, &r.Servings, &r.ImageID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return r, ErrNotFound
-	}
-	if err != nil {
-		return r, err
-	}
-	rows, err := s.DB.Query(ctx, "SELECT name, amount::float8, unit FROM cooking.recipe_ingredients WHERE recipe_id=$1 ORDER BY position", id)
-	if err != nil {
-		return r, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var ingredient Ingredient
-		if err := rows.Scan(&ingredient.Name, &ingredient.Amount, &ingredient.Unit); err != nil {
-			return r, err
-		}
-		r.Ingredients = append(r.Ingredients, ingredient)
-	}
-	if err := rows.Err(); err != nil {
-		return r, err
-	}
-	rows.Close()
-	steps, err := s.DB.Query(ctx, "SELECT step FROM cooking.recipe_steps WHERE recipe_id=$1 ORDER BY position", id)
-	if err != nil {
-		return r, err
-	}
-	defer steps.Close()
-	for steps.Next() {
-		var step string
-		if err := steps.Scan(&step); err != nil {
-			return r, err
-		}
-		r.Steps = append(r.Steps, step)
-	}
-	return r, steps.Err()
+	var record recipeRecord
+	ordered := func(db *gorm.DB) *gorm.DB { return db.Order("position") }
+	err := s.db.WithContext(ctx).Where("id = ?", id).
+		Preload("Ingredients", ordered).Preload("Steps", ordered).Take(&record).Error
+	return record.recipe(), storeError("get recipe", err)
 }
 
-func insertCandidates(ctx context.Context, tx pgx.Tx, recipeID string) ([]Candidate, error) {
-	result := make([]Candidate, 0, 3)
-	for range 3 {
-		candidate := Candidate{ID: uuid.NewString(), Status: "PENDING"}
-		if _, err := tx.Exec(ctx, "INSERT INTO cooking.image_generation_jobs(id,recipe_id,status,created_at) VALUES($1,$2,'PENDING',now())", candidate.ID, recipeID); err != nil {
-			return nil, err
-		}
-		result = append(result, candidate)
+func insertCandidates(tx *gorm.DB, recipeID string) ([]Candidate, error) {
+	jobs := make([]imageJobRecord, 3)
+	result := make([]Candidate, len(jobs))
+	for i := range jobs {
+		jobs[i] = imageJobRecord{ID: uuid.NewString(), RecipeID: recipeID, Status: "PENDING"}
+		result[i] = Candidate{ID: jobs[i].ID, Status: jobs[i].Status}
 	}
-	return result, nil
+	return result, tx.Create(&jobs).Error
 }
 
-// Create persists the recipe and its durable image queue in one transaction.
+// Create uses an explicit transaction for the parent, ordered children and queue.
+// Associations are inserted explicitly, avoiding GORM's implicit association upserts.
 func (s *Store) Create(ctx context.Context, content Content) (Recipe, error) {
-	r := Recipe{ID: uuid.NewString(), Content: content}
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return r, err
+	r := recipeRecord{ID: uuid.NewString(), Title: content.Title, Description: content.Description,
+		Category: content.Category, Servings: content.Servings}
+	r.Ingredients = make([]ingredientRecord, len(content.Ingredients))
+	for position, ingredient := range content.Ingredients {
+		r.Ingredients[position] = ingredientRecord{RecipeID: r.ID, Position: position,
+			Name: ingredient.Name, Amount: ingredient.Amount, Unit: ingredient.Unit}
 	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, "INSERT INTO cooking.recipes(id,title,description,category,servings,created_at) VALUES($1,$2,$3,$4,$5,now())", r.ID, r.Title, r.Description, r.Category, r.Servings); err != nil {
-		return r, err
+	r.Steps = make([]stepRecord, len(content.Steps))
+	for position, step := range content.Steps {
+		r.Steps[position] = stepRecord{RecipeID: r.ID, Position: position, Step: step}
 	}
-	for position, ingredient := range r.Ingredients {
-		if _, err := tx.Exec(ctx, "INSERT INTO cooking.recipe_ingredients(recipe_id,position,name,amount,unit) VALUES($1,$2,$3,$4,$5)", r.ID, position, ingredient.Name, ingredient.Amount, ingredient.Unit); err != nil {
-			return r, err
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Omit(clause.Associations).Create(&r).Error; err != nil {
+			return err
 		}
-	}
-	for position, step := range r.Steps {
-		if _, err := tx.Exec(ctx, "INSERT INTO cooking.recipe_steps(recipe_id,position,step) VALUES($1,$2,$3)", r.ID, position, step); err != nil {
-			return r, err
+		if len(r.Ingredients) > 0 {
+			if err := tx.CreateInBatches(&r.Ingredients, 100).Error; err != nil {
+				return err
+			}
 		}
-	}
-	if _, err := insertCandidates(ctx, tx, r.ID); err != nil {
-		return r, err
-	}
-	return r, tx.Commit(ctx)
+		if len(r.Steps) > 0 {
+			if err := tx.CreateInBatches(&r.Steps, 100).Error; err != nil {
+				return err
+			}
+		}
+		_, err := insertCandidates(tx, r.ID)
+		return err
+	})
+	return r.recipe(), storeError("create recipe", err)
+}
+
+// requireRecipe checks existence without loading ingredient and step associations.
+func requireRecipe(db *gorm.DB, id string) error {
+	var record recipeRecord
+	return storeError("find recipe", db.Select("id").Where("id = ?", id).Take(&record).Error)
 }
 
 func (s *Store) Candidates(ctx context.Context, id string) ([]Candidate, error) {
-	if _, err := s.Get(ctx, id); err != nil {
+	db := s.db.WithContext(ctx)
+	if err := requireRecipe(db, id); err != nil {
 		return nil, err
 	}
-	rows, err := s.DB.Query(ctx, "SELECT id::text,status,error FROM cooking.image_generation_jobs WHERE recipe_id=$1 ORDER BY created_at,id", id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	result := []Candidate{}
-	for rows.Next() {
-		var candidate Candidate
-		if err := rows.Scan(&candidate.ID, &candidate.Status, &candidate.Error); err != nil {
-			return nil, err
-		}
-		result = append(result, candidate)
-	}
-	return result, rows.Err()
+	err := db.Model(&imageJobRecord{}).Select("id", "status", "error").
+		Where("recipe_id = ?", id).Order("created_at, id").Find(&result).Error
+	return result, storeError("list image candidates", err)
 }
 
 func (s *Store) Generate(ctx context.Context, id string) ([]Candidate, error) {
-	tx, err := s.DB.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(ctx)
-	var exists string
-	if err := tx.QueryRow(ctx, "SELECT id::text FROM cooking.recipes WHERE id=$1 FOR KEY SHARE", id).Scan(&exists); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
+	var result []Candidate
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		locked := tx.Clauses(clause.Locking{Strength: "KEY SHARE"})
+		if err := requireRecipe(locked, id); err != nil {
+			return err
 		}
-		return nil, err
-	}
-	result, err := insertCandidates(ctx, tx, id)
-	if err != nil {
-		return nil, err
-	}
-	return result, tx.Commit(ctx)
+		var err error
+		result, err = insertCandidates(tx, id)
+		return err
+	})
+	return result, storeError("queue image candidates", err)
 }
 
 func (s *Store) SelectImage(ctx context.Context, id, imageID string) error {
-	if _, err := s.Get(ctx, id); err != nil {
+	db := s.db.WithContext(ctx)
+	if err := requireRecipe(db, id); err != nil {
 		return err
 	}
-	result, err := s.DB.Exec(ctx, `UPDATE cooking.recipes SET image_id=$2 WHERE id=$1 AND EXISTS(SELECT 1 FROM cooking.image_generation_jobs WHERE id=$2 AND recipe_id=$1 AND status='COMPLETED')`, id, imageID)
-	if err != nil {
-		return err
+	completed := db.Model(&imageJobRecord{}).Select("1").
+		Where("id = ? AND recipe_id = ? AND status = ?", imageID, id, "COMPLETED")
+	result := db.Model(&recipeRecord{}).Where("id = ?", id).
+		Where("EXISTS (?)", completed).Update("image_id", imageID)
+	if result.Error != nil {
+		return storeError("select recipe image", result.Error)
 	}
-	if result.RowsAffected() == 0 {
+	if result.RowsAffected == 0 {
 		return ErrInvalidImage
 	}
 	return nil

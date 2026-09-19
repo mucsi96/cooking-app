@@ -49,7 +49,11 @@ func run(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Join(c.StorageDirectory, "images"), 0750); err != nil {
 		return err
 	}
-	pool, err := database.Open(startup, c)
+	db, err := database.Open(startup, c)
+	if err != nil {
+		return err
+	}
+	pool, err := db.DB()
 	if err != nil {
 		return err
 	}
@@ -66,7 +70,7 @@ func run(ctx context.Context) error {
 		case <-time.After(time.Second):
 		}
 	}
-	store := &recipe.Store{DB: pool}
+	store := recipe.NewStore(db)
 	client := ai.New(c)
 	storage := media.Storage{Directory: c.StorageDirectory}
 	api := httpapi.API{Store: store, AI: client, Storage: storage}
@@ -81,7 +85,7 @@ func run(ctx context.Context) error {
 	}
 	management := &http.Server{
 		Addr:              ":" + c.ManagementPort,
-		Handler:           httpapi.Health(pool.Ping),
+		Handler:           httpapi.Health(pool.PingContext),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 	}

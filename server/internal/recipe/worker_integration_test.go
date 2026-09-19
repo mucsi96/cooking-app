@@ -31,17 +31,21 @@ func TestWorkersClaimOnceAndRecoverInterruptedJobs(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	pool, err := database.Open(ctx, config.Config{DatabaseURL: url})
+	db, err := database.Open(ctx, config.Config{DatabaseURL: url})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool, err := db.DB()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer pool.Close()
-	store := &Store{DB: pool}
+	store := NewStore(db)
 	r, err := store.Create(ctx, Content{Title: "Leves", Description: "Finom", Category: "Leves", Servings: 4, Ingredients: []Ingredient{{Name: "só"}}, Steps: []string{"Főzd meg."}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Exec(context.Background(), "DELETE FROM cooking.recipes WHERE id=$1", r.ID)
+	defer pool.ExecContext(context.Background(), "DELETE FROM cooking.recipes WHERE id=$1", r.ID)
 	started := make(chan struct{})
 	worker := Worker{Store: store, Generator: generatorFunc(func(ctx context.Context, _, _ string) ([]byte, error) {
 		close(started)
@@ -72,6 +76,9 @@ func TestWorkersClaimOnceAndRecoverInterruptedJobs(t *testing.T) {
 
 	var mu sync.Mutex
 	saved := map[string]int{}
+	if _, err := pool.ExecContext(ctx, "UPDATE cooking.image_generation_jobs SET error='old error' WHERE recipe_id=$1", r.ID); err != nil {
+		t.Fatal(err)
+	}
 	worker.Generator = generatorFunc(func(context.Context, string, string) ([]byte, error) { return []byte("image"), nil })
 	worker.Storage = storageFunc(func(_ context.Context, id string, _ []byte) error {
 		mu.Lock()
@@ -96,6 +103,15 @@ func TestWorkersClaimOnceAndRecoverInterruptedJobs(t *testing.T) {
 			t.Errorf("job %s processed %d times", id, count)
 		}
 	}
+	completed, err := store.Candidates(ctx, r.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range completed {
+		if candidate.Status != "COMPLETED" || candidate.Error != nil {
+			t.Fatalf("completion did not clear error to SQL NULL: %+v", candidate)
+		}
+	}
 
 	newJobs, err := store.Generate(ctx, r.ID)
 	if err != nil {
@@ -109,7 +125,7 @@ func TestWorkersClaimOnceAndRecoverInterruptedJobs(t *testing.T) {
 	}
 	for _, job := range newJobs {
 		var status string
-		if err := pool.QueryRow(ctx, "SELECT status FROM cooking.image_generation_jobs WHERE id=$1", job.ID).Scan(&status); err != nil || status != "FAILED" {
+		if err := pool.QueryRowContext(ctx, "SELECT status FROM cooking.image_generation_jobs WHERE id=$1", job.ID).Scan(&status); err != nil || status != "FAILED" {
 			t.Fatalf("terminal failure: %s %v", status, err)
 		}
 	}

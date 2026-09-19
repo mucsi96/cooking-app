@@ -14,7 +14,18 @@
 - Use idiomatic Go: small packages, explicit constructors/dependencies, ordinary
   structs, context propagation, wrapped errors and `gofmt`.
 - Do not recreate an annotation-based dependency-injection or ORM framework.
-- HTTP routing and middleware use Gin. Persistence uses pgx and parameterized SQL.
+- HTTP routing and middleware use Gin. Persistence uses GORM's PostgreSQL driver
+  over pgx and a shared `database/sql` connection pool.
+- Keep persistence records separate from API models, with explicit schema-qualified
+  table names and primary keys. Do not embed `gorm.Model` into legacy tables.
+- Start queries with `WithContext(ctx)`; never cache mutable query chains. Use
+  parameter placeholders for values and fixed, application-owned ordering/column names.
+- Use transaction callbacks and only the provided transaction handle inside them.
+  Preload ordered associations for details; project only needed columns for lists.
+- Use targeted updates and explicit maps for zero/null values, check `RowsAffected`
+  where meaningful, and translate `gorm.ErrRecordNotFound` into domain errors.
+- Do not use `Save`, global updates, automatic association upserts or `AutoMigrate`.
+  Goose SQL migrations are the only schema authority. Keep query parameters out of logs.
 - Keep transactions around related writes; recipe creation and image job creation
   are atomic. Always close rows, response bodies, files and subprocess resources.
 - Use `log/slog` structured logging. Do not log credentials or raw recipe photos.
@@ -54,7 +65,7 @@
 - `client/`: Angular 22, Material UI, MSAL production auth and local OIDC testing.
 - `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
 - `server/internal/config/`: environment variables and Azure Key Vault.
-- `server/internal/database/`: pgx and embedded Goose migrations.
+- `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
 - `server/internal/recipe/`: domain model, SQL store, public page imports, workers.
 - `server/internal/ai/`: recipe extraction and image generation SDK adapters.
 - `server/internal/media/`: ffmpeg photo normalization and atomic WebP storage.

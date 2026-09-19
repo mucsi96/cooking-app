@@ -17,7 +17,7 @@ releases deployed through Helm and Traefik.
 | Client | Angular 22, standalone components, signals and HTTP resources |
 | UI | Angular Material and `@mucsi96/angular-material-theme`, Hungarian dark theme |
 | API | Go 1.26, Gin, explicit dependency injection |
-| Database | PostgreSQL 17, pgx connection pool, embedded Goose SQL migrations |
+| Database | PostgreSQL 17, GORM with the pgx-backed PostgreSQL driver, Goose SQL migrations |
 | Authentication | OIDC JWT validation with `go-oidc`; MSAL/Azure AD in the browser |
 | Secrets | Official Azure Identity and Key Vault SDKs |
 | AI | Official Anthropic and OpenAI Go SDKs |
@@ -30,7 +30,7 @@ The backend is organized by responsibility:
 ```text
 server/cmd/server/          startup, dependency wiring, graceful shutdown
 server/internal/config/    environment and Key Vault configuration
-server/internal/database/  pgx pool and embedded versioned SQL migrations
+server/internal/database/  GORM, shared SQL pool and embedded SQL migrations
 server/internal/recipe/    domain types, persistence, URL import, image workers
 server/internal/ai/        Anthropic extraction and OpenAI image generation
 server/internal/media/     photo normalization and atomic WebP storage
@@ -71,6 +71,26 @@ recipe. Three workers claim jobs using PostgreSQL `FOR UPDATE SKIP LOCKED`,
 generate a scene with Claude, render it with OpenAI and atomically write WebP
 thumbnails. Failures are visible as `FAILED`; interrupted jobs remain `PENDING`
 and resume after restart. Image generation does not hold up the import response.
+
+### GORM persistence conventions
+
+- Persistence records map explicitly to the existing `cooking` tables and UUID /
+  composite primary keys, independently of API and domain models.
+- Every operation propagates its context through `WithContext`. Related writes
+  use transaction callbacks, with explicit batched inserts for ordered children.
+- Recipe details preload ingredients and steps in position order. List queries
+  select only their response columns and do not load associations.
+- Updates target explicit columns; maps are used where null/zero values must be
+  written. Record-not-found errors are mapped to domain errors, and conditional
+  writes check affected rows. There are no implicit `Save` upserts or soft deletes.
+- GORM and Goose share one bounded `database/sql` pool through pgx. SQL logging
+  omits parameter values. Goose remains the only schema authority; startup does
+  not call `AutoMigrate`.
+
+The queue deliberately holds a row lock while generating an image so process
+interruption rolls the job back to pending. Its three workers and five-minute
+job deadline bound this exceptional long-running transaction; ordinary recipe
+transactions contain database operations only.
 
 ## Development
 
