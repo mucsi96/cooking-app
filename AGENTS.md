@@ -115,7 +115,7 @@ the operating system. `scripts/install_dependencies.sh` installs project depende
 # From server/
 go run ./cmd/server
 go vet ./...
-go test -race ./...
+go build ./...
 
 # From client/
 npm start
@@ -132,9 +132,9 @@ npm test
 npx playwright test --ui
 ```
 
-- Go tests cover authentication, malformed AI output, URL restrictions, image
-  conversion and PostgreSQL persistence. Set `TEST_DATABASE_URL` to an isolated
-  database for integration tests; CI always supplies it.
+- Use Playwright E2E tests as the sole automated test suite, following skeleton-app.
+  Exercise the running application with PostgreSQL and mock OIDC/AI services.
+  Do not add Go unit/integration tests or a `go test` CI job.
 - Playwright tests use user-facing roles/labels/text, not implementation selectors.
 - Test port overrides: `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL`,
   `TEST_OPENAI_URL`. Never reuse another project's database for tests.

@@ -2,15 +2,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Go tests",
-      "type": "shell",
-      "command": "go test -race ./...",
-      "problemMatcher": [],
-      "options": {
-        "cwd": "${workspaceFolder}/server"
-      }
-    },
-    {
       "type": "shell",
       "command": "go vet ./...",
       "label": "Go vet",

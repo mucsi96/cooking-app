@@ -1,6 +1,5 @@
 /bin/
 /storage/
 /.env
-/coverage.out
 # Untracked build output left by the previous backend.
 /target/

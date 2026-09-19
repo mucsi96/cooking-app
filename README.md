@@ -22,7 +22,7 @@ releases deployed through Helm and Traefik.
 | Secrets | Official Azure Identity and Key Vault SDKs |
 | AI | Official Anthropic and OpenAI Go SDKs |
 | Images | Bounded PostgreSQL-backed worker pool, ffmpeg, persistent WebP files |
-| Tests | Go tests, PostgreSQL integration tests, Playwright desktop/mobile E2E |
+| Tests | Playwright desktop/mobile E2E against the full application stack |
 | Deployment | Multi-stage Go/Alpine and Angular/nginx images, Helm, Traefik Gateway API |
 
 The backend is organized by responsibility:
@@ -135,9 +135,7 @@ proxies `/api` to port 8063. VS Code includes a Go debugger configuration using
 ```bash
 # From server/
 go vet ./...
-go test -race ./...
-# Enable persistence/migration tests against an isolated database:
-TEST_DATABASE_URL='postgres://postgres:postgres@localhost:5460/cooking_test?sslmode=disable' go test -race ./...
+go build ./...
 
 # From client/
 npm run build
@@ -146,10 +144,11 @@ npm run build
 npm test
 ```
 
-Persistence tests skip unless `TEST_DATABASE_URL` is set. CI provides a dedicated
-PostgreSQL service and runs them before E2E tests. For an alternate test stack,
-Playwright accepts `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL` and
-`TEST_OPENAI_URL`.
+Following skeleton-app, Playwright E2E tests are the sole automated test suite.
+They exercise the Angular client and Go API against PostgreSQL, a mock OIDC
+provider and mock AI services in the test pod. CI builds the container images
+and runs this suite before publishing. For an alternate test stack, Playwright
+accepts `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL` and `TEST_OPENAI_URL`.
 
 ## Runtime configuration
 
@@ -198,7 +197,7 @@ build argument is needed. Replace `SPRING_ACTUATOR_PORT` with `MANAGEMENT_PORT`
 in custom deployment configurations. The API chart preserves the existing
 release name, workload identity service account and `cooking-pvc` volume.
 
-The GitHub pipeline runs Go and browser tests, publishes versioned images and
+The GitHub pipeline runs Playwright E2E tests, publishes versioned images and
 tags the exact built commit using `target_commitish`. `scripts/deploy.sh` uses
 the local Go API chart and the shared `mucsi96/client-app` chart. The container's
 `GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
