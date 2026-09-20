@@ -23,7 +23,15 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: func(groups []string, attr slog.Attr) slog.Attr {
+			// VictoriaLogs expects the log message in the top-level _msg field.
+			if len(groups) == 0 && attr.Key == slog.MessageKey {
+				attr.Key = "_msg"
+			}
+			return attr
+		},
+	})))
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
 		fmt.Println("cooking-server go")
 		return
