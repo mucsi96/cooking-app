@@ -21,7 +21,7 @@ app.post('/reset', (req, res) => {
 });
 
 // Add route for image generation mock
-app.post('/images/generations', (req, res) => {
+app.post('/v1/images/generations', (req, res) => {
   try {
     const result = imageHandler.generateImages(req.body);
     res.status(200).json(result);

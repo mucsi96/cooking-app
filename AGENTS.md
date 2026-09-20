@@ -1,329 +1,142 @@
-# Cooking App - Development Guidelines
+# Cooking App — Development Guidelines
 
-## General Code Style
+## General
 
-- Avoid fallbacks, prefer failing fast
-- Prefer functional programming patterns
-- Prefer immutable data structures
+- Prefer failing fast to silent fallbacks.
+- Use immutable values and functional transformations where appropriate.
+- All user-facing text is Hungarian; the UI uses the Material dark theme.
+- Keep the architecture aligned with [skeleton-app](https://github.com/mucsi96/skeleton-app):
+  Angular SPA, `/api/environment` bootstrap, Azure AD, PostgreSQL, mocked AI,
+  Playwright, Podman and versioned Helm deployments.
 
-## Java Style
+## Go
 
-- Use Lombok annotations (@Data, @Builder, @RequiredArgsConstructor)
-- Constructor injection (via @RequiredArgsConstructor)
-- Use Stream API for collections
-- Use records for DTOs/responses
+- Use idiomatic Go: small packages, explicit constructors/dependencies, ordinary
+  structs, context propagation, wrapped errors and `gofmt`.
+- Do not recreate an annotation-based dependency-injection or ORM framework.
+- HTTP routing and middleware use Gin. Persistence uses GORM's PostgreSQL driver
+  over pgx and a shared `database/sql` connection pool.
+- Keep persistence records separate from API models, with explicit schema-qualified
+  table names and primary keys. Do not embed `gorm.Model` into legacy tables.
+- Start queries with `WithContext(ctx)`; never cache mutable query chains. Use
+  parameter placeholders for values and fixed, application-owned ordering/column names.
+- Use transaction callbacks and only the provided transaction handle inside them.
+  Preload ordered associations for details; project only needed columns for lists.
+- Use targeted updates and explicit maps for zero/null values, check `RowsAffected`
+  where meaningful, and translate `gorm.ErrRecordNotFound` into domain errors.
+- Do not use `Save`, global updates, automatic association upserts or `AutoMigrate`.
+  Goose SQL migrations are the only schema authority. Keep query parameters out of logs.
+- Keep transactions around related writes; recipe creation and image job creation
+  are atomic. Always close rows, response bodies, files and subprocess resources.
+- Use `log/slog` structured logging. Do not log credentials or raw recipe photos.
+- Interfaces belong with their consumers and should describe only the operations
+  they need. Use a fixed worker pool rather than unbounded goroutines.
+- New schema changes are versioned SQL files under
+  `server/internal/database/migrations/`; never change an applied migration.
+- The image queue uses `FOR UPDATE SKIP LOCKED`. Rollback returns interrupted
+  work to the pending queue. Terminal errors become `FAILED`.
+- Use the official Anthropic, OpenAI, Azure Identity and Key Vault SDKs.
 
-## TypeScript Style
+## TypeScript / Angular
 
-- Use `const` by default
-- Prefer spread operator for object/array operations
-- Use functional array methods (map, filter, reduce)
-- Use string literals over enums
-
-## Testing Style
-
-- Write tests from user perspective
-- Use role-based selectors (getByRole)
-- Use semantic selectors (getByText, getByLabel)
-- E2E tests with Playwright
-
-## Angular Style
-
-- Use Angular Material components
-- Follow `@mucsi96/angular-material-theme`'s documented button-color API: use `bt-color="primary|success|warn|error"` on `mat-flat-button`, `mat-raised-button`, `mat-fab` (including extended FABs), and `mat-mini-fab`, including anchor buttons. Use `[attr.bt-color]` for dynamic tones; no directive import is needed.
-- Solid buttons default to primary. Use `error` for destructive actions, `warn` for caution, and `success` for positive outcomes. Material's legacy `color="warn"` means error/red, not the theme's orange `bt-color="warn"`; migrate solid buttons accordingly.
-- For an arbitrary solid-button color, set only `--bt-button-bg` without `bt-color`. Let the theme derive label contrast and hover colors; do not override Material container/label/state-layer color tokens, `--mat-sys-primary`, or button `background`, `color`, and `:hover` separately. Keep the intended button variant; raised buttons support the same API and retain elevation.
-- The `bt-color` API does not cover text, outlined, icon, or menu buttons. Use their documented Material APIs instead; do not apply solid-button color workarounds to them. Check the installed theme README when upgrading or changing component styles.
-- Use signals and resources (not rxjs where possible)
-- Use string literals over enums
-- Standalone components
-
-## Design
-
-- Material UI dark theme
-- Skeleton loaders for loading states
-- All user-facing text is Hungarian
-
-## Project Overview
-
-Recipe collection application based on the patterns of
-[skeleton-app](https://github.com/mucsi96/skeleton-app):
-
-- Recipes are grouped by Hungarian category with AI-generated thumbnails
-- The recipe details page rescales ingredient amounts when the serving
-  count is adjusted
-- Recipes are imported by pasting free text in any language (English,
-  German, ...); Anthropic Claude extracts a structured recipe and
-  translates it to Hungarian
-- The same import endpoint accepts plain text over the API, which drives
-  the email-based import pipeline
-- Pasting a full HTTP(S) URL into the import field (or sending it as `text` to
-  the import API) fetches the public page's text and JSON-LD metadata before AI
-  extraction. Fetches are size- and time-limited; redirects are validated too.
-- Thumbnails are generated asynchronously (several candidates per recipe,
-  following the [learn-language](https://github.com/mucsi96/learn-language)
-  approach); the user picks their favorite
+- Use `const`, readonly models, object/array spreads and map/filter/reduce.
+- Prefer string literal unions over enums.
+- Use standalone components, signals, signal inputs and HTTP resources for reads.
+- Use Angular Material components and skeleton loaders for loading states.
+- Follow `@mucsi96/angular-material-theme`'s documented button-color API: use
+  `bt-color="primary|success|warn|error"` on `mat-flat-button`, `mat-raised-button`,
+  `mat-fab` (including extended FABs), and `mat-mini-fab`, including anchor buttons.
+  Use `[attr.bt-color]` for dynamic tones; no directive import is needed.
+- Solid buttons default to primary. Use `error` for destructive actions, `warn`
+  for caution, and `success` for positive outcomes. Material's legacy
+  `color="warn"` means error/red, not the theme's orange `bt-color="warn"`.
+- For an arbitrary solid-button color, set only `--bt-button-bg` without
+  `bt-color`. Let the theme derive label contrast and hover colors. Do not override
+  Material container/label/state-layer tokens, `--mat-sys-primary`, or button
+  `background`, `color`, and `:hover` separately. Retain the intended button variant.
+- The `bt-color` API does not cover text, outlined, icon or menu buttons. Use their
+  documented Material APIs instead. Check the installed theme README when changing styles.
+- Keep the shared authentication/interceptor/bootstrap conventions from skeleton-app.
+  HTTP resources must still pass through the authentication and retry interceptors.
+- Revoke object URLs on cleanup and cancel reads when the selected resource changes.
 
 ## Architecture
 
-- **client/** - Angular SPA with Material UI, MSAL authentication
-- **server/** - Spring Boot REST API with PostgreSQL, Spring AI (Anthropic) and the OpenAI image API
-- **mock_anthropic_server/** - Express mock for the Claude API (recipe extraction, image scene descriptions)
-- **mock_openai_server/** - Express mock for the OpenAI image generation API
-- **test/** - Playwright E2E tests
-- **scripts/** - Build and deployment scripts
-- **.github/workflows/** - CI/CD pipelines
+- `client/`: Angular 22, Material UI, MSAL production auth and local OIDC testing.
+- `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
+- `server/internal/config/`: environment variables and Azure Key Vault.
+- `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
+- `server/internal/recipe/`: domain model, SQL store, public page imports, workers.
+- `server/internal/ai/`: recipe extraction and image generation SDK adapters.
+- `server/internal/media/`: ffmpeg photo normalization and atomic WebP storage.
+- `server/internal/httpapi/`: Gin routes, role/scope checks and health probes.
+- Production API chart: `charts/go_app/` in the shared `k8s-helm-charts` project.
+- `mock_anthropic_server/`, `mock_openai_server/`: Express mocks of provider APIs.
+- `test/`: Playwright desktop/mobile E2E tests.
+- `scripts/`, `.github/workflows/`: development, build, tests and deployment.
 
-## Key Technologies
+## Features and contracts
 
-- Spring Boot 4, Java 21 (built into a GraalVM native image)
-- Angular 22
-- PostgreSQL 17
-- Spring AI (Anthropic) for structured recipe extraction
-- openai-java for image generation, ffmpeg for webp thumbnails
-- Azure AD (MSAL) authentication
-- Azure Key Vault for secrets
-- Traefik reverse proxy
-- Docker multi-stage builds
-- Playwright for E2E testing
+- Recipes are grouped by Hungarian category. Details rescale ingredient amounts
+  when servings change and support printing.
+- Text, public HTTP(S) URLs and recipe photos can be imported. Claude extracts
+  structured Hungarian recipes. The text endpoint also serves the email pipeline.
+- URL imports preserve JSON-LD, limit bytes/time/redirects, and validate the actual
+  dialed IP address to prevent private network access and DNS rebinding.
+- Photo uploads are limited to 15 MiB and normalized before extraction.
+- Three candidate images are queued per import or generation request. Users can
+  choose only completed images belonging to the recipe.
+- Preserve API JSON field names and the existing `cooking` schema. Existing
+  installations are adopted by Goose without dropping data or image files.
 
-## Development Commands
+Protected routes require `api-access` scope plus `readRecipes` or `createRecipe`.
+Authentication stays enabled during tests, using a mock OIDC provider.
+`GET /api/environment` is public. See README for the complete route table.
 
-### Frontend
-```bash
-cd client && npm start        # Start dev server
-cd client && npm run build    # Production build
-```
+## Configuration and deployment
 
-### Backend
-```bash
-cd server && mvn spring-boot:run -Dspring-boot.run.profiles=local  # Start with local profile
-```
+- One Go binary/image works in every environment; configuration is runtime-only.
+- Explicit environment variables override Key Vault values. See `server/.env.example`
+  and README for variables and secrets. Never commit `server/.env`.
+- Health endpoints are `/health/liveness` and
+  `/health/readiness` on `MANAGEMENT_PORT`.
+- Images live under `STORAGE_DIRECTORY/images/{uuid}.webp` on a persistent volume.
+- API releases use the shared `mucsi96/go-app` chart (based on `spring-app`),
+  preserving `cooking-pvc` and the workload identity service account. Client
+  releases use the shared `mucsi96/client-app` chart. Keep `scripts/deploy.sh`
+  aligned with the original shared-chart workflow and values.
+- Release tags must point at the image's commit: `target_commitish: ${{ github.sha }}`.
+  Component releases are skipped when their directory has not changed since its tag.
 
-Local development still runs on a plain JVM. The native image is built only by
-the container build - see **Native image and the baked-in Spring profile**
-below.
+## Commands and tests
 
-### Podman Development
-```bash
-scripts/pod_up.sh             # Build images and start test pod
-scripts/pod_down.sh           # Stop and clean up test pod
-scripts/dev_db_up.sh          # Start development PostgreSQL database
-scripts/dev_db_down.sh        # Stop development database
-```
-
-### Testing
-```bash
-cd test && npm test           # Run E2E tests
-cd test && npx playwright test --ui  # Interactive test runner
-```
-
-## API Routes
-
-- `GET /api/environment` - Client configuration (public)
-- `GET /api/recipes` - Recipe list for the category overview (`readRecipes`)
-- `GET /api/recipes/{id}` - Recipe details (`readRecipes`)
-- `POST /api/recipes/import` - Import a recipe from free text in any language; also used by the email pipeline (`createRecipe`)
-- `GET /api/recipes/{id}/images` - Thumbnail candidate statuses (`readRecipes`)
-- `POST /api/recipes/{id}/images` - Generate a new batch of thumbnail candidates (`createRecipe`)
-- `PUT /api/recipes/{id}/image` - Pick the favorite thumbnail (`createRecipe`)
-- `GET /api/images/{id}` - Serve a generated webp image (`readRecipes`)
-
-## Data Model
-
-- **recipes** - Title, description, category, servings, chosen image, all in Hungarian
-- **recipe_ingredients** - Ordered ingredients with numeric amount and unit
-- **recipe_steps** - Ordered preparation steps
-- **image_generation_jobs** - Async thumbnail candidate jobs (PENDING/COMPLETED/FAILED) per recipe
-
-## Configuration Patterns
-
-### Spring Profiles
-- **prod** - Production with Azure Key Vault and AAD
-- **local** - Local development with Podman DB
-- **test** - Testing with disabled auth and mock AI services
-
-## Native image and the baked-in Spring profile
-
-The server is compiled ahead of time into a GraalVM native executable linked
-against musl, so there is no JRE in the runtime image and startup is in the tens
-of milliseconds rather than seconds. The runtime image is Alpine with `ffmpeg`
-installed for the webp thumbnails; the executable spawns it with a plain
-`ProcessBuilder`, which needs nothing special in a native image.
-
-Ahead-of-time processing resolves bean definitions at build time, which means
-the active Spring profile is decided by the build, not by the environment:
-Spring AOT emits an `EnvironmentPostProcessor` that activates the profile the
-image was built with. `SPRING_PROFILES_ACTIVE` is no longer read at runtime, and
-`test/test-pod.yaml` no longer sets it. Build one image per profile with the
-`SPRING_PROFILE` build argument - `test` for the e2e pod, `prod` for the image
-published to Docker Hub:
+Enter `nix develop` for Go, Node, ffmpeg, Helm and Azure CLI. Install Podman through
+the operating system. `scripts/install_dependencies.sh` installs project dependencies.
 
 ```bash
-podman build --build-arg SPRING_PROFILE=test \
-  -t localhost/cooking-app-server:test server
+# From server/
+go run ./cmd/server
+go vet ./...
+go build ./...
+
+# From client/
+npm start
+npm run build
+
+# From the repository root
+scripts/pod_up.sh
+scripts/pod_down.sh
+scripts/dev_db_up.sh
+scripts/dev_db_down.sh
+
+# From test/
+npm test
+npx playwright test --ui
 ```
 
-Build-time details that live in `server/pom.xml` and are easy to trip over:
-
-- AOT processing refreshes the application context, so every placeholder an
-  auto-configuration condition reads has to resolve during the build. The
-  `process-aot` execution supplies build-time stand-ins for them and turns the
-  Key Vault property source off, so the build never reaches out to Azure. The
-  stand-ins are not baked into the image; they only have to make the same
-  conditions match as the real values do at runtime. A new required environment
-  placeholder read by a condition means adding it there too. Placeholders that
-  are only read while creating beans (`${db-url}`, `${claude-api-key}`,
-  `${openai-api-key}`, `${STORAGE_DIRECTORY}`) are resolved at runtime as
-  before and need nothing.
-- Spring AOT generates bean-definition classes into the packages of the
-  configuration classes it processes, including the signed Spring Cloud Azure
-  jars. Mixing generated (unsigned) and signed classes in one package makes the
-  native-image builder throw `SecurityException: ... signer information does not
-  match`, so the builder is pointed at `server/native-image.security`, which
-  disables jar signature verification.
-- Jars can ship a `META-INF/native-image/.../native-image.properties` that forces
-  classes to build-time initialization. When such a class holds on to objects of
-  types that are still initialized at run time, the builder fails with
-  `UnsupportedFeatureException: An object of type ... was found in the image
-  heap`. `--initialize-at-build-time` in the `native-maven-plugin` config covers
-  the Jackson core classes `azure-core` leaves behind that way. Note that a build
-  cannot undo such a directive: `exclude-config` does not apply to
-  `native-image.properties`, and `initialize-at-run-time` for the same class is
-  rejected outright. That is why `azure-core` is pinned ahead of the version the
-  Azure BOM selects - the BOM's 1.58.0 forces SLF4J and logback to build-time
-  initialization, which is irreconcilable with Spring Boot setting logging up at
-  run time. Check this again when the Azure BOM moves.
-- The Azure SDK's `ExpandableStringEnum` constants are built by instantiating the
-  subclass reflectively, and `fromString` returns `null` rather than failing when
-  it cannot. Missing reflection metadata therefore surfaces as every constant of
-  a class being `null` and a `NullPointerException` far from the cause.
-  `AzureNativeHints` registers the subclasses azure-identity does not ship
-  metadata for.
-- azure-core decides how to read a response body by asking the model class
-  whether it declares the `fromXml` / `fromJson` pair azure-xml and azure-json
-  generate, and it asks with `Class.getDeclaredMethods()`. In a native image that
-  returns nothing for a class with no reachability metadata, so the answer is
-  silently "no" and azure-core falls back to Jackson - for XML that means an
-  `XmlMapper`, and jackson-dataformat-xml is not on the classpath, so the call
-  dies with a `NoClassDefFoundError`. The SDK ships metadata for most of its
-  models but not all. `AzureNativeHints` scans `com.azure` and registers every
-  `XmlSerializable`, `JsonSerializable` and `HttpResponseException` instead of
-  naming the ones missing today, so an SDK upgrade cannot reintroduce this.
-- The Key Vault property source is configured by an `EnvironmentPostProcessor`
-  that runs before there is an application context and reads its own settings
-  with a plain `Binder` over `AzureKeyVaultSecretProperties`. Nothing in the
-  framework infers that, and the auto-configuration that would otherwise
-  contribute the binding metadata for that type never matches here - it is
-  conditional on `spring.cloud.azure.keyvault[.secret].endpoint`, while this
-  application configures the endpoint under `...secret.property-sources[0]`. With
-  no members in the image the binder binds nothing, and an absent binding is
-  indistinguishable from an empty configuration, so the post-processor quietly
-  concludes there is no property source to add. Nothing fails at that point: the
-  image starts and then dies much later on the first secret-backed placeholder.
-  `KeyVaultPropertySourceNativeHints` supplies the metadata. Only the prod
-  profile reads secrets from Key Vault, so no test covers this - after changing
-  anything about the Key Vault configuration, check that the generated
-  `target/spring-aot/main/resources/META-INF/native-image/**/reachability-metadata.json`
-  still carries `AzureKeyVaultSecretProperties` and
-  `AzureKeyVaultPropertySourceProperties` with their accessors.
-- The Anthropic and OpenAI SDKs are Kotlin, and both serialize their models
-  with `jackson-module-kotlin`, which maps Kotlin constructors back to
-  `java.lang.reflect.Constructor` through Kotlin reflection. Without metadata
-  that fails at request time as `KotlinReflectionInternalError: Could not
-  compute caller for function`, naming Kotlin's reflection internals rather
-  than the model that is missing. Neither SDK ships native-image metadata, so
-  `AnthropicNativeHints` and `OpenAINativeHints` register the packages the
-  application reaches (`com.anthropic.models.messages`, `com.openai.models.images`
-  and both SDKs' `core` packages) through the shared `PackageReflectionHints`
-  scanner. A call into a new SDK area (another OpenAI endpoint, the Anthropic
-  beta API) means adding its package there.
-- Liquibase validates a changelog by re-computing each change set's checksum,
-  which serializes the change object by invoking every getter reflectively -
-  including the ones the changelog leaves unset. The reachability metadata the
-  GraalVM repository ships for liquibase-core lists those getters only behind
-  conditions this application never reaches, so an `addPrimaryKey` change dies
-  at startup with `MissingReflectionRegistrationError: ...
-  AddPrimaryKeyChange.getCatalogName()`. `LiquibaseNativeHints` registers the
-  whole `liquibase.change` package so a new change type cannot bring this back.
-- On PostgreSQL, Hibernate prepares its multi-id loader at session-factory
-  creation by allocating an empty array of each entity's identifier type
-  reflectively. Spring's JPA hints cover the entities but not `UUID[]`, so the
-  `entityManagerFactory` bean dies with `MissingReflectionRegistrationError:
-  Cannot reflectively instantiate the array class 'java.util.UUID[]'`.
-  `EntityIdArrayNativeHints` registers the array type of every entity's `@Id`.
-- `RecipeImportService` reads the model's answer into `ExtractedRecipe` through
-  Spring AI's `BeanOutputConverter`, which derives the JSON schema with the
-  victools generator and binds the answer with a plain `ObjectMapper`. Neither
-  is inferred by the framework's AOT processing, so the record carries a
-  `@RegisterReflectionForBinding` hint. A new structured-output type needs the
-  same.
-
-Spring Cloud Azure needs one workaround in application code:
-`AzureGlobalPropertiesConfiguration` re-declares the `AzureGlobalProperties`
-bean. Spring Cloud Azure registers it from an `ImportBeanDefinitionRegistrar`
-using a lambda instance supplier, which AOT cannot turn into generated code, so
-it drops the bean and the image fails to start with "required a bean of type
-AzureGlobalProperties that could not be found". See the class comment for why it
-uses its own bean name. That workaround turns on Spring Cloud Azure's
-registration order, which is not a public contract, so smoke-test the image
-whenever `spring-cloud-azure-dependencies` moves - a change there could drop the
-bean again with no compile-time signal.
-
-The image is deliberately not built with `--static`. A fully static binary links
-but then segfaults the moment it starts in the container - before GraalVM
-installs its own segfault handler, so with no output whatsoever, which looks
-exactly like a container that silently never starts.
-
-### Reproducing AOT problems without a native build
-
-Most AOT problems reproduce without waiting for a native compile (which takes
-several minutes). Run the AOT-processed application on a normal JVM:
-
-```bash
-cd server
-mvn -Pnative package -DskipTests -Dapp.profile=test
-java -Dspring.aot.enabled=true -jar target/cooking-0.0.1-SNAPSHOT.jar
-```
-
-That exercises the generated context - missing bean definitions, profile and
-condition mismatches - in seconds. Only class-initialization and reflection
-problems need the real `mvn -Pnative native:compile`.
-
-Types that are only ever bound reflectively need explicit hints. Controller
-request/response types, JPA entities and Spring Data repositories are covered by
-the framework's own AOT processing and need nothing. Types read with a plain
-`ObjectMapper` want `@RegisterReflectionForBinding` (see `RecipeImportService`);
-types bound by a `Binder` rather than Jackson want `BindableRuntimeHintsRegistrar`,
-which registers exactly what `JavaBeanBinder` looks for over the whole class
-hierarchy - see `KeyVaultPropertySourceNativeHints`.
-
-### Release and image publishing
-
-`publish-server` and `publish-client` each ask `mucsi96/get-next-version` for a
-version. It answers from the newest `server-N` / `client-N` tag: no changes under
-the component's directory since that tag means no version, and every publish step
-is skipped. The release step must therefore tag the commit its image was built
-from - `target_commitish: ${{ github.sha }}` - because the action otherwise tags
-whatever the default branch points at when the release is created, and the
-server's native build takes long enough that another push can land first. A tag
-left on a commit that was never built makes the next run believe that commit is
-already released, so nothing is published for it. That is silent: `deploy`
-resolves the newest tag on Docker Hub by `last_updated` and succeeds, deploying
-the previous commit's image, so a fix can look deployed while the running image
-predates it. When a change does not reach production, check that a release tag
-exists on the commit and that `publish-server` did not skip its build steps.
-
-### Environment Config
-- Server exposes `/api/environment` endpoint
-- Client fetches config before bootstrap
-- Conditionally enables MSAL based on `mockAuth` flag
-
-### Secrets (Azure Key Vault)
-- `claude-api-key` - Anthropic API key for recipe extraction and image descriptions
-- `openai-api-key` - OpenAI API key for thumbnail generation
-- `db-url`, `db-username`, `db-password` - PostgreSQL connection
-
-### Storage
-- Generated images are stored as webp files under `STORAGE_DIRECTORY`
-  (mount a persistent volume in production)
+- Use Playwright E2E tests as the sole automated test suite, following skeleton-app.
+  Exercise the running application with PostgreSQL and mock OIDC/AI services.
+  Do not add Go unit/integration tests or a `go test` CI job.
+- Playwright tests use user-facing roles/labels/text, not implementation selectors.
+- Test port overrides: `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL`,
+  `TEST_OPENAI_URL`. Never reuse another project's database for tests.

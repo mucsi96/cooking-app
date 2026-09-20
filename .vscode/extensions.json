@@ -1,7 +1,6 @@
 {
     "recommendations": [
-        "vmware.vscode-boot-dev-pack",
-        "vscjava.vscode-java-pack",
+        "golang.go",
         "angular.ng-template",
         "editorconfig.editorconfig",
         "esbenp.prettier-vscode",

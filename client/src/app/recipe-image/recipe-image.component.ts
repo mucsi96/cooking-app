@@ -1,12 +1,11 @@
 import {
   Component,
   effect,
-  inject,
   input,
   signal,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { ImageService } from '../image.service';
+import { httpResource } from '@angular/common/http';
 
 @Component({
   selector: 'app-recipe-image',
@@ -15,23 +14,21 @@ import { ImageService } from '../image.service';
   styleUrl: './recipe-image.component.css',
 })
 export class RecipeImageComponent {
-  private readonly imageService = inject(ImageService);
-
   readonly imageId = input.required<string | null>();
   readonly alt = input<string>('');
 
   readonly url = signal<string | null>(null);
+  private readonly image = httpResource.blob(() => {
+    const id = this.imageId();
+    return id ? `/api/images/${id}` : undefined;
+  });
 
   constructor() {
-    effect(() => {
-      const imageId = this.imageId();
-      this.url.set(null);
-      if (imageId) {
-        this.imageService
-          .fetchImageUrl(imageId)
-          .then((url) => this.url.set(url))
-          .catch(() => this.url.set(null));
-      }
+    effect((onCleanup) => {
+      const blob = this.image.hasValue() ? this.image.value() : undefined;
+      const url = blob ? URL.createObjectURL(blob) : null;
+      this.url.set(url);
+      if (url) onCleanup(() => URL.revokeObjectURL(url));
     });
   }
 }

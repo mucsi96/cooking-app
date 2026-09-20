@@ -1,4 +1,9 @@
-@if (recipes.isLoading() && !recipes.value()) {
+@if (recipes.error()) {
+<div role="alert">
+  <p>A receptek betöltése nem sikerült.</p>
+  <button mat-stroked-button (click)="recipes.reload()">Újrapróbálás</button>
+</div>
+} @else if (recipes.isLoading() && !recipes.hasValue()) {
 <bt-bar-loader class="page-loading" label="Receptek betöltése" />
 } @else { @if (categories().length === 0) {
 <div class="empty-state">

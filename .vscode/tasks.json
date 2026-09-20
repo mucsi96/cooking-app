@@ -2,43 +2,30 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Start DB Connection Proxy",
       "type": "shell",
-      "command": "scripts/start_db_proxy.sh",
+      "command": "go vet ./...",
+      "label": "Go vet",
       "problemMatcher": [],
-      "isBackground": true,
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/server"
       }
     },
     {
       "type": "shell",
-      "command": "${command:python.interpreterPath} -m ansible.cli.vault encrypt vars/vault.yaml --vault-password-file .ansible/vault_key",
-      "isBackground": true,
-      "label": "Encrypt vault",
+      "command": "go build ./...",
+      "label": "Build server",
       "problemMatcher": [],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/server"
       }
     },
     {
       "type": "shell",
-      "command": "${command:python.interpreterPath} -m ansible.cli.vault decrypt vars/vault.yaml --vault-password-file .ansible/vault_key",
-      "isBackground": true,
-      "label": "Decrypt vault",
+      "command": "npm run build",
+      "label": "Build client",
       "problemMatcher": [],
       "options": {
-        "cwd": "${workspaceFolder}"
-      }
-    },
-    {
-      "type": "shell",
-      "command": "${command:python.interpreterPath} -m ansible.cli.vault view vars/vault.yaml --vault-password-file .ansible/vault_key",
-      "isBackground": true,
-      "label": "View vault",
-      "problemMatcher": [],
-      "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/client"
       }
     },
     {

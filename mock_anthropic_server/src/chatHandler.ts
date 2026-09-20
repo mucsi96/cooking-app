@@ -17,8 +17,7 @@ export class ChatHandler {
             .join('\n');
     const content = getMessageContent(userMessage);
 
-    // Structured recipe extraction: respond with JSON only, as the
-    // BeanOutputConverter format instructions demand.
+    // Structured recipe extraction uses the same JSON contract as the Go client.
     if (system.includes('recipe extraction assistant')) {
       if (content.includes('visible in this photo') && !hasImageContent(userMessage)) {
         throw new Error('Recipe photo is missing from the user message');

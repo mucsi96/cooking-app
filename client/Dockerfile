@@ -3,7 +3,7 @@ FROM docker.io/library/node:26 AS build
 WORKDIR /workspace
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 

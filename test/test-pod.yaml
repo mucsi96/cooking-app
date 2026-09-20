@@ -113,10 +113,10 @@ spec:
       env:
         - name: SERVER_PORT
           value: "8064"
-        - name: SPRING_ACTUATOR_PORT
+        - name: MANAGEMENT_PORT
           value: "8162"
         - name: DB_URL
-          value: jdbc:postgresql://localhost:5432/test
+          value: postgres://localhost:5432/test?sslmode=disable
         - name: DB_USERNAME
           value: postgres
         - name: DB_PASSWORD
@@ -133,17 +133,18 @@ spec:
           value: /storage
         - name: MOCK_OAUTH2_SERVER_URI
           value: http://localhost:8060
+        - name: OIDC_ISSUER
+          value: http://localhost:8060/default
+        - name: API_CLIENT_ID
+          value: mock-api-client-id
       volumeMounts:
         - name: storage
           mountPath: /storage
       livenessProbe:
         httpGet:
-          path: /actuator/health/readiness
+          path: /health/readiness
           port: 8162
-        # The native executable is serving within a second of the container
-        # starting, so there is nothing to wait for before the first probe. The
-        # window stays generous because readiness still waits for the db
-        # container and the Liquibase migration.
+        # Readiness waits for the database, SQL migrations and OIDC discovery.
         initialDelaySeconds: 2
         periodSeconds: 2
         failureThreshold: 30

@@ -17,18 +17,14 @@ jobs:
       - uses: actions/checkout@v6
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      # The Spring profile is resolved during AOT processing and baked into the
-      # native executable, so the e2e image is built with the test profile and
-      # the published image (see publish-server) with the prod profile.
       - name: Build server image
         uses: docker/build-push-action@v6
         with:
           context: server
-          build-args: SPRING_PROFILE=test
           tags: localhost/cooking-app-server:test
           outputs: type=docker,dest=/tmp/server-image.tar
-          cache-from: type=gha,scope=server-test
-          cache-to: type=gha,mode=max,scope=server-test
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
       - name: Upload server image
         uses: actions/upload-artifact@v4
         with:
@@ -147,13 +143,10 @@ jobs:
           podman load -i /tmp/client-image.tar
           podman load -i /tmp/mock-anthropic-image.tar
           podman load -i /tmp/mock-openai-image.tar
-      # The server is a single native executable, so if it cannot even start in
-      # the runtime image there is nothing to log and the pod just times out two
-      # minutes later with an empty container log. Fail here instead.
       - name: Check the server executable runs
         run: |
           timeout 60 podman run --rm localhost/cooking-app-server:test \
-            -XX:PrintFlags= > /dev/null
+            --version
       - name: Setup test environment and start pod
         env:
           SKIP_BUILD: "1"
@@ -216,28 +209,21 @@ jobs:
         run: |
           echo "SERVER_IMAGE=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cooking-app-server:${{ steps.get_next_version.outputs.version }}" >> "$GITHUB_ENV"
 
-      # Built, then checked, then pushed - not build-and-push - so a prod
-      # executable that cannot start never reaches Docker Hub.
+      # Runtime configuration lets the same build serve every environment.
       - name: Build server image
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
         uses: docker/build-push-action@v6
         with:
           context: server
           load: true
-          build-args: SPRING_PROFILE=prod
           tags: ${{ env.SERVER_IMAGE }}
-          cache-from: type=gha,scope=server-prod
-          cache-to: type=gha,mode=max,scope=server-prod
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server
 
-      # The profile is baked in at build time, so this is a different
-      # executable from the one test-e2e exercised, taking code paths - the Key
-      # Vault property source above all - that no test covers. This cannot
-      # catch a missing reflection hint, but it does catch a binary that does
-      # not start, before the image is published and deploy picks it up.
       - name: Check the server executable runs
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
         run: |
-          timeout 60 docker run --rm "$SERVER_IMAGE" -XX:PrintFlags= > /dev/null
+          timeout 60 docker run --rm "$SERVER_IMAGE" --version
 
       - name: Push server image
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
@@ -246,7 +232,7 @@ jobs:
       # Tag the commit this image was actually built from. Without
       # target_commitish the release action tags whatever main points at when
       # the release is created, which is a different commit whenever another
-      # push lands during the minutes the native build takes. The next run then
+      # push lands during the build. The next run then
       # asks get-next-version for a version, sees the tag already on its own
       # HEAD, concludes nothing changed and publishes nothing - while deploy
       # still succeeds, on the previous commit's image.

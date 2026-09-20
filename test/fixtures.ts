@@ -3,7 +3,10 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { cleanupDb } from './utils';
 
-const MOCK_SERVERS = ['http://localhost:3060', 'http://localhost:3061'];
+const MOCK_SERVERS = [
+  process.env.TEST_ANTHROPIC_URL ?? 'http://localhost:3060',
+  process.env.TEST_OPENAI_URL ?? 'http://localhost:3061',
+];
 
 export const test = base.extend({
   page: async ({ page }, use, testInfo: TestInfo) => {
@@ -12,14 +15,11 @@ export const test = base.extend({
     // Reset mock AI servers
     await Promise.all(
       MOCK_SERVERS.map(async (server) => {
-        try {
-          await fetch(`${server}/reset`, {
+          const response = await fetch(`${server}/reset`, {
             method: 'POST',
             signal: AbortSignal.timeout(5000),
           });
-        } catch (error) {
-          console.warn(`Warning: Could not reset mock AI server ${server}:`, error);
-        }
+          if (!response.ok) throw new Error(`Could not reset mock AI server ${server}`);
       })
     );
 

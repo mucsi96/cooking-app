@@ -1,6 +1,5 @@
 {
-  "java.compile.nullAnalysis.mode": "disabled",
-  "java.configuration.updateBuildConfiguration": "interactive",
+  "[go]": { "editor.defaultFormatter": "golang.go", "editor.formatOnSave": true },
   "vs-kubernetes": {
     "vs-kubernetes.namespace": "cooking-app",
     "vs-kubernetes.kubeconfig": "${workspaceFolder}/.kube/config"

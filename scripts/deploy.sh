@@ -26,35 +26,23 @@ serverLatestTag=$(curl -s "https://registry.hub.docker.com/v2/repositories/$DOCK
 clientLatestTag=$(curl -s "https://registry.hub.docker.com/v2/repositories/$DOCKERHUB_USERNAME/cooking-app-client/tags" | jq -r '.results | map(select(.name != "latest")) | sort_by(.last_updated) | reverse | .[0].name')
 
 echo "Updating Helm repositories..."
-# The mucsi96 charts no longer bundle Prometheus exporter sidecars or
-# ServiceMonitors (client-app >= 22.0.0, spring-app >= 30.0.0, node-app >= 20.0.0).
-# This deploy rolls out the updated charts and drops those containers.
+# The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
 helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 
-springAppChartVersion=$(helm search repo mucsi96/spring-app --output json | jq -r '.[0].version')
+goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
 
-echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag using spring-app chart $springAppChartVersion"
+echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag using go-app chart $goAppChartVersion"
 
 # CPU limits are intentionally omitted for both services (limits.cpu=null
 # clears the chart default): on a single-user node they only throttle
 # startup and the ffmpeg runs; memory limits are the ones that matter.
 #
-# The server is a GraalVM native executable, so there is no JVM metaspace, no
-# code cache and no JIT-compiled code to hold: it idles far below what a JRE
-# image would use, hence the smaller request. The request is what the
-# scheduler reserves around the clock, so it is sized for idle. Over 36h in
-# production RSS averaged 101Mi and peaked at 112Mi; the working set peaked at
-# 248Mi.
-#
-# The limit is the opposite question: it has to cover the idle footprint, the
-# 256Mi heap the image is capped at (see the ENTRYPOINT in server/Dockerfile -
-# keep the two in step) and the ffmpeg child processes that convert the
-# generated images to webp, which run outside the heap but inside the
-# container's cgroup.
-helm upgrade $SERVER_RELEASE_NAME mucsi96/spring-app \
+# The Go executable uses GOMEMLIMIT=256MiB (see server/Dockerfile). The 768Mi
+# container limit also leaves room for ffmpeg image conversion subprocesses.
+helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --install \
-    --version $springAppChartVersion \
+    --version $goAppChartVersion \
     --set image=$DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag \
     --set entryPoint=web \
     --set host=$HOSTNAME \

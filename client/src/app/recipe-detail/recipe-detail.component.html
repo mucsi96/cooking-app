@@ -1,4 +1,9 @@
-@if (recipe.isLoading() && !recipe.value()) {
+@if (recipe.error()) {
+<div role="alert">
+  <p>A recept betöltése nem sikerült.</p>
+  <button mat-stroked-button (click)="recipe.reload()">Újrapróbálás</button>
+</div>
+} @else if (recipe.isLoading() && !recipe.hasValue()) {
 <bt-bar-loader class="page-loading" label="Recept betöltése" />
 } @else if (recipe.value(); as recipeValue) {
 <article>
@@ -70,7 +75,10 @@
     <p class="hint">
       Válaszd ki a kedvenc AI-generált képedet, vagy kérj újakat.
     </p>
-    @if (candidates.value(); as candidateList) {
+    @if (candidates.error()) {
+    <p role="alert">A képek betöltése nem sikerült.</p>
+    <button mat-stroked-button (click)="candidates.reload()">Újrapróbálás</button>
+    } @else if (candidates.value(); as candidateList) {
     <div class="candidates">
       @for (candidate of candidateList; track candidate.id) {
       @if (candidate.status === 'PENDING') {
@@ -90,6 +98,8 @@
         <mat-icon class="selected-icon" aria-hidden="true">check_circle</mat-icon>
         }
       </button>
+      } @else {
+      <p role="status">A kép elkészítése nem sikerült.</p>
       } }
     </div>
     }
