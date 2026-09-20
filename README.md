@@ -204,9 +204,10 @@ the shared `mucsi96/go-app` and `mucsi96/client-app` charts. The container's
 The Go chart lives in
 [`k8s-helm-charts/charts/go_app`](https://github.com/mucsi96/k8s-helm-charts/tree/main/charts/go_app)
 and is based on its Spring chart, retaining the same environment, config-file,
-PVC, identity and resource values. Publish `go-app` from that repository before
-deploying this migration. `scripts/deploy.sh` resolves its latest published
-version through the shared Helm repository, just as it did for `spring-app`.
+PVC, identity and resource values. The initial published release is `go-app`
+1.0.0. `scripts/deploy.sh` resolves its latest published version through the
+shared Helm repository, just as it did for `spring-app`, and passes that version
+explicitly to `helm upgrade`.
 
 ### Default ports
 

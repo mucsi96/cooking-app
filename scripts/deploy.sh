@@ -29,7 +29,7 @@ echo "Updating Helm repositories..."
 # The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
 helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 
-goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -r '.[0].version')
+goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
 
 echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag using go-app chart $goAppChartVersion"
