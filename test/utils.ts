@@ -35,6 +35,9 @@ export interface SeedRecipe {
 export async function cleanupDb() {
   // recipe_ingredients, recipe_steps and image_generation_jobs cascade
   await query('DELETE FROM cooking.recipes');
+  await query(`UPDATE cooking.model_settings SET value = $1::jsonb WHERE id = 1`, [JSON.stringify({
+    extraction: 'claude-sonnet-4-6', scene: 'claude-sonnet-4-6', images: [{ id: 'gpt-image-2.5-sunburst-medium', count: 3 }],
+  })]);
 }
 
 export async function insertRecipe(recipe: SeedRecipe): Promise<string> {

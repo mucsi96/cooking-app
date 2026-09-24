@@ -19,6 +19,7 @@ import (
 	"github.com/mucsi96/cooking-app/server/internal/database"
 	"github.com/mucsi96/cooking-app/server/internal/httpapi"
 	"github.com/mucsi96/cooking-app/server/internal/media"
+	"github.com/mucsi96/cooking-app/server/internal/models"
 	"github.com/mucsi96/cooking-app/server/internal/recipe"
 )
 
@@ -79,9 +80,13 @@ func run(ctx context.Context) error {
 		}
 	}
 	store := recipe.NewStore(db)
-	client := ai.New(c)
+	settings, err := models.New(startup, db, c.AnthropicModel, c.OpenAIModel)
+	if err != nil {
+		return fmt.Errorf("initialize model settings: %w", err)
+	}
+	client := ai.New(c, settings)
 	storage := media.Storage{Directory: c.StorageDirectory}
-	api := httpapi.API{Store: store, AI: client, Storage: storage}
+	api := httpapi.API{Store: store, AI: client, Storage: storage, Models: settings}
 	server := &http.Server{
 		Addr:              ":" + c.Port,
 		Handler:           httpapi.Router(api, c.Environment, authorize),

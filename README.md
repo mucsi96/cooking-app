@@ -32,7 +32,8 @@ server/cmd/server/          startup, dependency wiring, graceful shutdown
 server/internal/config/    environment and Key Vault configuration
 server/internal/database/  GORM, shared SQL pool and embedded SQL migrations
 server/internal/recipe/    domain types, persistence, URL import, image workers
-server/internal/ai/        Anthropic extraction and OpenAI image generation
+server/internal/ai/        Anthropic/OpenAI extraction and OpenAI image generation
+server/internal/models/    model catalog and persistent model settings
 server/internal/media/     photo normalization and atomic WebP storage
 server/internal/httpapi/   Gin routes, bearer authentication, health probes
 ```
@@ -54,22 +55,50 @@ Tests exercise the same authentication using a local OIDC provider.
 | POST | `/api/recipes/{id}/images` | `createRecipe` |
 | PUT | `/api/recipes/{id}/image` | `createRecipe` |
 | GET | `/api/images/{id}` | `readRecipes` |
+| GET | `/api/models` | `createRecipe` |
+| GET | `/api/settings/models` | `createRecipe` |
+| PUT | `/api/settings/models` | `createRecipe` |
 
 Text import accepts `{"text":"recipe text or https://example.com/recipe"}`.
 This is also the API used by the email import pipeline. Photo import accepts
 multipart form field `image` (maximum 15 MiB). Photo bytes are checked and
-normalized to JPEG before being sent to Claude. Image selection accepts
+normalized to JPEG before being sent to the selected data model. Image selection accepts
 `{"imageId":"uuid"}` and returns HTTP 204.
 
 URL imports retain page text and JSON-LD recipe metadata. They allow public
 HTTP(S) addresses only, pin connections to validated IP addresses, validate
 redirects, and enforce a 15-second timeout and 2 MiB download limit.
 
-Each import creates three durable image jobs in the same transaction as the
+Each import creates the configured durable image jobs in the same transaction as the
 recipe. Three workers claim jobs using PostgreSQL `FOR UPDATE SKIP LOCKED`,
-generate a scene with Claude, render it with OpenAI and atomically write WebP
+generate a scene with the selected data model, render it with OpenAI and atomically write WebP
 thumbnails. Failures are visible as `FAILED`; interrupted jobs remain `PENDING`
 and resume after restart. Image generation does not hold up the import response.
+
+### Model settings
+
+Open **Beállítások** from the user menu to select data models independently for
+recipe extraction (text, URL and photo) and image descriptions. Image settings
+specify counts per model/quality for each import or generation request; zero
+disables that variant. Counts are limited to 10 per variant and 30 in total.
+Settings are shared across users, require `createRecipe`, and persist in PostgreSQL.
+Queued jobs retain their selected image model even when settings change.
+
+The OpenAI catalog matches learn-language: `gpt-6-astra`, `gpt-6-sol`, `gpt-5.5`,
+`gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`; images include `gpt-image-2`
+(low/medium/high) and `gpt-image-2.5-sunburst` / `gpt-image-2.5-flare`
+(low/medium/high/xhigh/max/auto). Anthropic data models are also available.
+Provider account access is required for the selected models.
+
+On first startup, `ANTHROPIC_MODEL` seeds both data selections and
+`OPENAI_IMAGE_MODEL` seeds three medium-quality images. Subsequent startups
+preserve saved settings. Existing queued jobs without a model use the configured
+`OPENAI_IMAGE_MODEL`. Recipe extraction accepts plain JSON or a single JSON code
+fence, while malformed and incomplete responses are rejected. OpenAI recipe
+extraction uses Structured Outputs (`response_format: json_schema`, `strict: true`)
+for both text and photos, with required recipe fields, nullable ingredient amounts
+and units, and a fixed Hungarian category enum. Refusals and truncated responses
+fail the import; domain validation also runs before persistence.
 
 ### GORM persistence conventions
 

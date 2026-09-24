@@ -19,6 +19,12 @@ export class ChatHandler {
 
     // Structured recipe extraction uses the same JSON contract as the Go client.
     if (system.includes('recipe extraction assistant')) {
+      if (content.includes('FENCED_JSON')) {
+        return createClaudeResponse('```json\n' + JSON.stringify(GOULASH) + '\n```');
+      }
+      if (content.includes('INVALID_JSON')) {
+        return createClaudeResponse('```json\n{"title":\n```');
+      }
       if (content.includes('visible in this photo') && !hasImageContent(userMessage)) {
         throw new Error('Recipe photo is missing from the user message');
       }

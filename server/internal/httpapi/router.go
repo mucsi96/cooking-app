@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mucsi96/cooking-app/server/internal/config"
 	"github.com/mucsi96/cooking-app/server/internal/media"
+	"github.com/mucsi96/cooking-app/server/internal/models"
 	"github.com/mucsi96/cooking-app/server/internal/recipe"
 )
 
@@ -26,6 +27,7 @@ type API struct {
 	Store   *recipe.Store
 	AI      Extractor
 	Storage media.Storage
+	Models  *models.Store
 }
 
 func fail(c *gin.Context, status int, message string) {
@@ -87,6 +89,24 @@ func Router(a API, environment config.Environment, authorize Authorizer) *gin.En
 	})
 	r.NoRoute(func(c *gin.Context) { fail(c, 404, "Az oldal nem található.") })
 	r.GET("/api/environment", func(c *gin.Context) { c.JSON(200, environment) })
+	r.GET("/api/models", authorize("createRecipe"), func(c *gin.Context) { c.JSON(200, a.Models.Catalog) })
+	r.GET("/api/settings/models", authorize("createRecipe"), func(c *gin.Context) { v, e := a.Models.Get(c.Request.Context()); respond(c, v, e) })
+	r.PUT("/api/settings/models", authorize("createRecipe"), func(c *gin.Context) {
+		var body models.Settings
+		if !decode(c, &body) {
+			return
+		}
+		err := a.Models.Put(c.Request.Context(), body)
+		if errors.Is(err, models.ErrInvalid) {
+			fail(c, 400, "Érvénytelen modellbeállítás. Modellenként legfeljebb 10, összesen legfeljebb 30 kép kérhető.")
+			return
+		}
+		if err != nil {
+			respond(c, nil, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
 	r.GET("/api/recipes", authorize("readRecipes"), func(c *gin.Context) { v, e := a.Store.List(c.Request.Context()); respond(c, v, e) })
 	r.POST("/api/recipes/import", authorize("createRecipe"), a.importText)
 	r.POST("/api/recipes/import/image", authorize("createRecipe"), a.importPhoto)

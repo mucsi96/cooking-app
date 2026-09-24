@@ -3,6 +3,12 @@ import { authGuard } from './utils/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'beallitasok',
+    loadComponent: () => import('./settings/settings.component').then(m => m.SettingsComponent),
+    canActivate: [authGuard],
+    title: 'Beállítások',
+  },
+  {
     path: '',
     pathMatch: 'full',
     loadComponent: () =>
