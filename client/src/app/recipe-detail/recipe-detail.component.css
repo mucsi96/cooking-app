@@ -6,11 +6,38 @@
 }
 
 .hero {
+  display: block;
+  position: relative;
+  width: 100%;
+  padding: 0;
+  cursor: pointer;
+  background: var(--bt-surface-1);
   aspect-ratio: 16 / 9;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--bt-outline);
   margin-bottom: 1.5rem;
+}
+
+.hero:focus-visible {
+  outline: 3px solid var(--bt-text-strong);
+  outline-offset: 3px;
+}
+
+.hero-action {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bt-surface-1);
+  color: var(--bt-text-strong);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .title-row {
@@ -85,46 +112,6 @@ h2 {
   margin-right: 0.35rem;
 }
 
-.hint {
-  color: var(--bt-text-muted);
-}
-
-.candidates {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.candidate {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid var(--bt-outline);
-  background: var(--bt-surface-1);
-  padding: 0;
-  cursor: pointer;
-}
-
-.candidate.selected {
-  border-color: var(--bt-primary, #4caf50);
-}
-
-.candidate-pending {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-}
-
-.selected-icon {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  color: var(--bt-primary, #4caf50);
-}
-
 .page-loading {
   display: flex;
   justify-content: center;
@@ -162,10 +149,6 @@ h2 {
     margin-bottom: 0.45rem;
   }
 
-  .candidates {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
 }
 
 @media print {
@@ -187,7 +170,6 @@ h2 {
 
   .hero,
   .print-button,
-  .cover-section,
   .servings button,
   mat-chip-set {
     display: none !important;

@@ -1,0 +1,54 @@
+<h2 mat-dialog-title>Borítókép</h2>
+<mat-dialog-content>
+  <p>Válaszd ki a kedvenc AI-generált képedet, vagy kérj újakat.</p>
+  @if (error(); as message) {
+  <p role="alert">{{ message }}</p>
+  }
+  @if (candidates.error()) {
+  <p role="alert">A képek betöltése nem sikerült.</p>
+  <button mat-stroked-button (click)="candidates.reload()">Újrapróbálás</button>
+  } @else if (candidates.isLoading() && !candidates.hasValue()) {
+  <bt-bar-loader label="Képek betöltése" />
+  } @else if (candidates.value(); as candidateList) {
+  <div class="candidates">
+    @for (candidate of candidateList; track candidate.id) {
+    @if (candidate.status === 'PENDING') {
+    <div class="candidate candidate-pending" role="status" aria-label="Kép generálása folyamatban">
+      <bt-bar-loader label="Kép generálása" />
+    </div>
+    } @else if (candidate.status === 'COMPLETED') {
+    <button
+      type="button"
+      class="candidate"
+      [class.selected]="candidate.id === selectedImageId()"
+      [attr.aria-label]="'Kép kiválasztása ' + candidate.id"
+      [attr.aria-pressed]="candidate.id === selectedImageId()"
+      [disabled]="selecting()"
+      (click)="selectImage(candidate.id)"
+    >
+      <app-recipe-image [imageId]="candidate.id" alt="Generált képjelölt" />
+      @if (candidate.id === selectedImageId()) {
+      <mat-icon class="selected-icon" aria-hidden="true">check_circle</mat-icon>
+      }
+    </button>
+    } @else {
+    <p role="status">A kép elkészítése nem sikerült.</p>
+    }
+    } @empty {
+    <p>Még nincs választható kép. Kérj új képeket a recepthez.</p>
+    }
+  </div>
+  }
+  @if (generating()) {
+  <p role="status">Képek generálásának indítása…</p>
+  }
+  @if (selecting()) {
+  <p role="status">Borítókép mentése…</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Bezárás</button>
+  <button mat-flat-button [disabled]="generating()" (click)="generateImages()">
+    Új képek generálása
+  </button>
+</mat-dialog-actions>

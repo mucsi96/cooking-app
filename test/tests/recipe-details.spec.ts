@@ -18,6 +18,28 @@ test('displays the recipe with ingredients and steps', async ({ page }) => {
   ).toBeVisible();
 });
 
+test('opens image generation from the empty thumbnail and restores keyboard focus', async ({ page }) => {
+  const thumbnail = page.getByRole('button', { name: 'Borítókép módosítása' });
+  await expect(page.getByRole('button', { name: 'Új képek generálása' })).toBeHidden();
+  await thumbnail.click();
+  const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Még nincs választható kép.', { exact: false })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Új képek generálása' }).click();
+  const candidates = dialog.getByRole('button', { name: /Kép kiválasztása/ });
+  await expect(candidates).toHaveCount(3, { timeout: 30000 });
+  await candidates.first().click();
+  await expect(candidates.first()).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Bezárás' }).click();
+  await expect(thumbnail).toBeFocused();
+  await thumbnail.press('Enter');
+  await expect(dialog).toBeVisible();
+  await expect(candidates.first()).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(thumbnail).toBeFocused();
+});
+
 test('scales ingredient amounts when increasing servings', async ({ page }) => {
   await page.getByRole('button', { name: 'Adagok növelése' }).click();
 
@@ -63,7 +85,7 @@ test('opens phone printing and provides a toner-friendly print layout', async ({
   await expect(page.getByRole('navigation', { name: 'Fő navigáció' })).toBeHidden();
   await expect(page.getByRole('button', { name: 'Nyomtatás' })).toBeHidden();
   await expect(page.getByRole('img', { name: 'Gulyásleves' })).toBeHidden();
-  await expect(page.getByRole('region', { name: 'Borítókép' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Borítókép módosítása' })).toBeHidden();
   const printColors = await page.getByRole('heading', { name: 'Gulyásleves' }).evaluate((heading) => ({
     background: getComputedStyle(document.body).backgroundColor,
     text: getComputedStyle(heading).color,
