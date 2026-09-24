@@ -35,6 +35,14 @@ test('opens image generation from the empty thumbnail and restores keyboard focu
   await thumbnail.press('Enter');
   await expect(dialog).toBeVisible();
   await expect(candidates.first()).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.getByRole('heading', { name: 'Borítókép', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'Bezárás', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeHidden();
+  await expect(thumbnail).toBeFocused();
+  await thumbnail.press('Enter');
+  await expect(dialog).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(thumbnail).toBeFocused();

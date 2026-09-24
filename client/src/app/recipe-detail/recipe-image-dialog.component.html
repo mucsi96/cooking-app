@@ -1,4 +1,7 @@
 <h2 mat-dialog-title>Borítókép</h2>
+<button class="close-button" mat-icon-button mat-dialog-close aria-label="Bezárás">
+  <mat-icon aria-hidden="true">close</mat-icon>
+</button>
 <mat-dialog-content>
   <p>Válaszd ki a kedvenc AI-generált képedet, vagy kérj újakat.</p>
   @if (error(); as message) {
@@ -47,7 +50,6 @@
   }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-button mat-dialog-close>Bezárás</button>
   <button mat-flat-button [disabled]="generating()" (click)="generateImages()">
     Új képek generálása
   </button>
