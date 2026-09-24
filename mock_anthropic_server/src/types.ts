@@ -24,4 +24,5 @@ export interface ClaudeRequest {
   max_tokens: number;
   system?: string | ClaudeTextBlock[];
   messages: ClaudeMessage[];
+  output_config?: { format?: { type: string; schema: Record<string, unknown> } };
 }

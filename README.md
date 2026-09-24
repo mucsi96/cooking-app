@@ -93,12 +93,13 @@ Provider account access is required for the selected models.
 On first startup, `ANTHROPIC_MODEL` seeds both data selections and
 `OPENAI_IMAGE_MODEL` seeds three medium-quality images. Subsequent startups
 preserve saved settings. Existing queued jobs without a model use the configured
-`OPENAI_IMAGE_MODEL`. Recipe extraction accepts plain JSON or a single JSON code
-fence, while malformed and incomplete responses are rejected. OpenAI recipe
-extraction uses Structured Outputs (`response_format: json_schema`, `strict: true`)
-for both text and photos, with required recipe fields, nullable ingredient amounts
-and units, and a fixed Hungarian category enum. Refusals and truncated responses
-fail the import; domain validation also runs before persistence.
+`OPENAI_IMAGE_MODEL`. Every data-model call uses native structured outputs:
+OpenAI uses `response_format: json_schema` with `strict: true`; Anthropic uses
+`output_config.format` with `type: json_schema`. Recipe extraction (text and photos)
+and image descriptions each have a required JSON schema. Recipe fields include
+nullable ingredient amounts/units and a fixed Hungarian category enum. Markdown
+fences, prose, malformed JSON, refusals and truncated responses are rejected.
+Domain validation enforces numeric bounds and nonempty recipe content before persistence.
 
 ### GORM persistence conventions
 

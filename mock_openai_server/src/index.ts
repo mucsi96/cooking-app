@@ -9,15 +9,22 @@ app.use(express.json({ limit: '20mb' }));
 const requests: { operation: string; model: string; quality?: string; photo?: boolean; responseFormat?: unknown }[] = [];
 app.get('/requests', (_req, res) => res.json(requests));
 app.post('/v1/chat/completions', (req, res) => {
+  if (req.body.response_format?.type !== 'json_schema' || req.body.response_format.json_schema?.strict !== true) {
+    res.status(400).json({ error: { message: 'A strict structured output schema is required' } });
+    return;
+  }
   const system = req.body.messages.find((message: any) => message.role === 'system')?.content ?? '';
   const user = req.body.messages.find((message: any) => message.role === 'user');
   requests.push({ operation: 'chat', model: req.body.model,
     responseFormat: req.body.response_format,
     photo: Array.isArray(user?.content) && user.content.some((part: any) => part.type === 'image_url') });
-  const content = system.includes('recipe extraction assistant')
+  const text = Array.isArray(user?.content) ? user.content.filter((part: any) => part.type === 'text').map((part: any) => part.text).join('\n') : user?.content ?? '';
+  const content = text.includes('FENCED_JSON') ? '```json\n{}\n```'
+    : text.includes('INVALID_JSON') ? '{"title":'
+    : system.includes('recipe extraction assistant')
     ? JSON.stringify({ title: 'Gulyásleves', description: 'Magyar gulyásleves.', category: 'Leves', servings: 4,
       ingredients: [{ name: 'marhalábszár', amount: 500, unit: 'g' }], steps: ['Főzd puhára a húst.'] })
-    : 'A photorealistic food photograph of goulash in a rustic bowl, no text.';
+    : JSON.stringify({ description: 'A photorealistic food photograph of goulash in a rustic bowl, no text.' });
   res.json({ id: 'chatcmpl-test', object: 'chat.completion', created: 1, model: req.body.model,
     choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content } }] });
 });

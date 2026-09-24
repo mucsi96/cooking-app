@@ -1,7 +1,8 @@
 package ai
 
-// OpenAI strict Structured Outputs requires all properties to be required and
-// additionalProperties=false on every object. Unspecified quantities remain null.
+// Both providers require additionalProperties=false and required fields.
+// Use their shared schema subset; numeric and collection bounds are validated
+// by the domain model because Anthropic does not support these constraints.
 const recipeSchema = `{
   "type": "object",
   "additionalProperties": false,
@@ -10,21 +11,27 @@ const recipeSchema = `{
     "title": {"type": "string"},
     "description": {"type": "string"},
     "category": {"type": "string", "enum": ["Reggeli", "Leves", "Főétel", "Köret", "Saláta", "Desszert", "Sütemény", "Ital", "Egyéb"]},
-    "servings": {"type": "integer", "minimum": 1},
+    "servings": {"type": "integer"},
     "ingredients": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["name", "amount", "unit"],
         "properties": {
           "name": {"type": "string"},
-          "amount": {"type": ["number", "null"], "minimum": 0},
+          "amount": {"type": ["number", "null"]},
           "unit": {"type": ["string", "null"]}
         }
       }
     },
-    "steps": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+    "steps": {"type": "array", "items": {"type": "string"}}
   }
+}`
+
+const sceneSchema = `{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description"],
+  "properties": {"description": {"type": "string"}}
 }`

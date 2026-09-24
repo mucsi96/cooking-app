@@ -3,6 +3,7 @@ import { ChatHandler } from './chatHandler';
 
 const app = express();
 const chatHandler = new ChatHandler();
+const requests: { model: string; outputConfig: unknown }[] = [];
 
 app.use(express.json({ limit: '20mb' }));
 
@@ -15,11 +16,15 @@ app.use((req, res, next) => {
 });
 
 app.post('/reset', (req, res) => {
+  requests.length = 0;
   res.status(200).json({ status: 'ok', message: 'Reset complete' });
 });
 
+app.get('/requests', (_req, res) => res.json(requests));
+
 app.post('/v1/messages', async (req, res) => {
   try {
+    requests.push({ model: req.body.model, outputConfig: req.body.output_config });
     const result = await chatHandler.processRequest(req.body);
     res.status(200).json(result);
   } catch (error: any) {
