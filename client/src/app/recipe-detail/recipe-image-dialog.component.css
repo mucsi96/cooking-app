@@ -1,0 +1,68 @@
+:host {
+  display: block;
+  position: relative;
+}
+
+h2 {
+  padding-right: 64px;
+}
+
+.close-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+
+.candidate {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--bt-outline);
+  background: var(--bt-surface-1);
+  padding: 0;
+  cursor: pointer;
+}
+
+.candidate.selected {
+  border-color: var(--bt-primary);
+}
+
+.candidate:focus-visible {
+  outline: 3px solid var(--bt-text-strong);
+  outline-offset: 2px;
+}
+
+.candidate-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.candidate:disabled {
+  cursor: wait;
+}
+
+.selected-icon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--bt-primary);
+  background: var(--bt-surface-1);
+  border-radius: 50%;
+}
+
+@media (max-width: 599px) {
+  .candidates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}

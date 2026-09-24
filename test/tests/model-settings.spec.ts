@@ -14,7 +14,9 @@ test(`requires structured recipe JSON from ${model}`, async ({ page }) => {
   await page.getByLabel('Recept szövege').fill('Goulash');
   await page.getByRole('button', { name: 'Importálás' }).click();
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Kép kiválasztása/ })).toHaveCount(3, { timeout: 30000 });
+  await page.getByRole('button', { name: 'Borítókép módosítása' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await expect(dialog.getByRole('button', { name: /Kép kiválasztása/ })).toHaveCount(3, { timeout: 30000 });
   const response = await fetch(`${process.env.TEST_ANTHROPIC_URL ?? 'http://localhost:3060'}/requests`);
   const requests = await response.json();
   expect(requests.length).toBeGreaterThan(0);
@@ -54,7 +56,9 @@ test('persists model settings and uses selected OpenAI data and image models', a
   await page.getByLabel('Recept szövege').fill('Goulash');
   await page.getByRole('button', { name: 'Importálás' }).click();
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Kép kiválasztása/ })).toHaveCount(2, { timeout: 30000 });
+  await page.getByRole('button', { name: 'Borítókép módosítása' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await expect(dialog.getByRole('button', { name: /Kép kiválasztása/ })).toHaveCount(2, { timeout: 30000 });
   const response = await fetch(`${process.env.TEST_OPENAI_URL ?? 'http://localhost:3061'}/requests`);
   const requests = await response.json();
   const extraction = requests.find((request: any) => request.model === 'gpt-6-astra');

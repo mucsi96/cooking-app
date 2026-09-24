@@ -101,14 +101,31 @@ test('generates several thumbnail candidates and lets the user pick a favorite',
   await page.getByRole('button', { name: 'Importálás' }).click();
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
 
+  await expect(page.getByRole('button', { name: 'Új képek generálása' })).toBeHidden();
+  await page.getByRole('button', { name: 'Borítókép módosítása' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await expect(dialog).toBeVisible();
+
   // Several candidates are generated right away
-  const candidates = page.getByRole('button', { name: /Kép kiválasztása/ });
+  const candidates = dialog.getByRole('button', { name: /Kép kiválasztása/ });
   await expect(candidates).toHaveCount(3, { timeout: 30000 });
 
   // Picking a favorite sets it as the recipe thumbnail
   await candidates.first().click();
   await expect(candidates.first()).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Bezárás' }).click();
   await expect(page.getByRole('img', { name: 'Gulyásleves' })).toBeVisible();
+
+  // Clicking the existing thumbnail reopens the dialog with the saved selection.
+  await page.getByRole('img', { name: 'Gulyásleves' }).click();
+  await expect(candidates.first()).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: 'Új képek generálása' }).click();
+  await expect(candidates).toHaveCount(6, { timeout: 30000 });
+  await candidates.last().click();
+  await expect(candidates.last()).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Borítókép módosítása' })).toBeFocused();
 
   // The chosen thumbnail shows up on the category listing
   await page.getByRole('link', { name: 'Receptek' }).click();
