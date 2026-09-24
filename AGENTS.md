@@ -79,12 +79,12 @@
 
 - Recipes are grouped by Hungarian category. Details rescale ingredient amounts
   when servings change and support printing.
-- Text, public HTTP(S) URLs and recipe photos can be imported. Claude extracts
+- Text, public HTTP(S) URLs and recipe photos can be imported. The selected data model extracts
   structured Hungarian recipes. The text endpoint also serves the email pipeline.
 - URL imports preserve JSON-LD, limit bytes/time/redirects, and validate the actual
   dialed IP address to prevent private network access and DNS rebinding.
 - Photo uploads are limited to 15 MiB and normalized before extraction.
-- Three candidate images are queued per import or generation request. Users can
+- Configured per-model candidate images (three by default) are queued per import or generation request. Users can
   choose only completed images belonging to the recipe.
 - Preserve API JSON field names and the existing `cooking` schema. Existing
   installations are adopted by Goose without dropping data or image files.

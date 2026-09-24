@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/mucsi96/cooking-app/server/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -40,11 +41,23 @@ func (s *Store) Get(ctx context.Context, id string) (Recipe, error) {
 }
 
 func insertCandidates(tx *gorm.DB, recipeID string) ([]Candidate, error) {
-	jobs := make([]imageJobRecord, 3)
+	settings, err := models.Read(tx)
+	if err != nil {
+		return nil, err
+	}
+	jobs := []imageJobRecord{}
+	for _, image := range settings.Images {
+		for range image.Count {
+			id := image.ID
+			jobs = append(jobs, imageJobRecord{ID: uuid.NewString(), RecipeID: recipeID, Status: "PENDING", ModelID: &id})
+		}
+	}
 	result := make([]Candidate, len(jobs))
 	for i := range jobs {
-		jobs[i] = imageJobRecord{ID: uuid.NewString(), RecipeID: recipeID, Status: "PENDING"}
 		result[i] = Candidate{ID: jobs[i].ID, Status: jobs[i].Status}
+	}
+	if len(jobs) == 0 {
+		return result, nil
 	}
 	return result, tx.Create(&jobs).Error
 }

@@ -4,6 +4,9 @@ import { GOULASH, STRUDEL } from './data';
 
 export class ChatHandler {
   processRequest(request: ClaudeRequest) {
+    if (request.output_config?.format?.type !== 'json_schema' || !request.output_config.format.schema) {
+      throw new Error('A structured output schema is required');
+    }
     const userMessage = request.messages.find((m) => m.role === 'user');
     if (!userMessage) {
       throw new Error('No user message found');
@@ -19,6 +22,12 @@ export class ChatHandler {
 
     // Structured recipe extraction uses the same JSON contract as the Go client.
     if (system.includes('recipe extraction assistant')) {
+      if (content.includes('FENCED_JSON')) {
+        return createClaudeResponse('```json\n' + JSON.stringify(GOULASH) + '\n```');
+      }
+      if (content.includes('INVALID_JSON')) {
+        return createClaudeResponse('```json\n{"title":\n```');
+      }
       if (content.includes('visible in this photo') && !hasImageContent(userMessage)) {
         throw new Error('Recipe photo is missing from the user message');
       }
@@ -35,12 +44,10 @@ export class ChatHandler {
     if (system.includes('photorealistic food photograph')) {
       const dish = content.split('\n')[0];
       return createClaudeResponse(
-        `A photorealistic photo of freshly cooked ${dish} served in a rustic bowl on a wooden table, warm natural light, no text.`
+        JSON.stringify({ description: `A photorealistic photo of freshly cooked ${dish} served in a rustic bowl on a wooden table, warm natural light, no text.` })
       );
     }
 
-    return createClaudeResponse(
-      'Hello! I received your message. How can I help you today?'
-    );
+    throw new Error('Unknown structured output operation');
   }
 }

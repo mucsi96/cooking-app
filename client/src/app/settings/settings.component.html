@@ -1,0 +1,51 @@
+<a mat-button routerLink="/">Vissza a receptekhez</a>
+<h1>Beállítások</h1>
+@if (catalog.isLoading() || settings.isLoading()) {
+  <bt-bar-loader label="Modellbeállítások betöltése" />
+} @else if (catalog.error() || settings.error()) {
+  <p role="alert">A modellbeállítások betöltése nem sikerült.</p>
+  <button mat-button (click)="catalog.reload(); settings.reload()">Újrapróbálás</button>
+} @else if (draft(); as value) {
+  <p>A beállítások minden felhasználóra érvényesek. A már sorban álló képek modellje nem változik.</p>
+  <mat-card>
+    <mat-card-header><mat-card-title><h2>Adatmodellek</h2></mat-card-title></mat-card-header>
+    <mat-card-content>
+      <mat-form-field>
+        <mat-label>Recept felismerése</mat-label>
+        <mat-select [ngModel]="value.extraction" (ngModelChange)="setModel('extraction', $event)" [disabled]="saving()">
+          @for (model of catalog.value()?.data; track model.id) {
+            <mat-option [value]="model.id">{{ model.id }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Képleírás készítése</mat-label>
+        <mat-select [ngModel]="value.scene" (ngModelChange)="setModel('scene', $event)" [disabled]="saving()">
+          @for (model of catalog.value()?.data; track model.id) {
+            <mat-option [value]="model.id">{{ model.id }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </mat-card-content>
+  </mat-card>
+  <mat-card>
+    <mat-card-header><mat-card-title><h2>Képmodellek</h2></mat-card-title></mat-card-header>
+    <mat-card-content>
+      <p>Képek száma recepten és képgenerálásonként. A 0 kikapcsolja a modellt. Modellenként legfeljebb 10, összesen legfeljebb 30 kép kérhető.</p>
+      @for (model of catalog.value()?.images; track model.id) {
+        <div class="image-row">
+          <span>{{ model.name }}</span>
+          <mat-form-field>
+            <mat-label>Képek száma</mat-label>
+            <input matInput type="number" min="0" max="10" step="1" [attr.aria-label]="model.name + ' képek száma'"
+              [ngModel]="count(model.id)" (ngModelChange)="setCount(model.id, $event)" [disabled]="saving()" />
+          </mat-form-field>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+  <div class="actions">
+    <button mat-flat-button bt-color="primary" (click)="save()" [disabled]="!valid() || saving()">{{ saving() ? 'Mentés…' : 'Mentés' }}</button>
+    <p role="status">{{ message() }}</p>
+  </div>
+}

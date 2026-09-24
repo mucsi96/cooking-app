@@ -14,7 +14,7 @@ test('displays app name in header', async ({ page }) => {
 
 test('shows user initials in header', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'TU' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('TU');
 });
 
 test('shows empty state with a link to import', async ({ page }) => {

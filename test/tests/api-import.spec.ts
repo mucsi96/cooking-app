@@ -14,7 +14,7 @@ Bei 180 Grad 35 Minuten goldbraun backen.`;
 // POST with the raw recipe text is enough to persist a Hungarian recipe.
 test('imports a recipe from plain text over the API', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'TU' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('TU');
 
   const token = await page.evaluate(() => {
     const key = Object.keys(localStorage).find((k) => k.startsWith('oidc.user'));

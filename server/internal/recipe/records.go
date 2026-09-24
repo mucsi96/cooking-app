@@ -41,6 +41,7 @@ type imageJobRecord struct {
 	ID        string `gorm:"type:uuid;primaryKey"`
 	RecipeID  string `gorm:"type:uuid"`
 	Status    string
+	ModelID   *string
 	Error     *string
 	CreatedAt time.Time
 }

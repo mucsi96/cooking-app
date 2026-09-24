@@ -12,7 +12,7 @@ import (
 )
 
 type ImageGenerator interface {
-	GenerateImage(context.Context, string, string) ([]byte, error)
+	GenerateImage(context.Context, string, string, *string) ([]byte, error)
 }
 type ImageStorage interface {
 	SaveImage(context.Context, string, []byte) error
@@ -52,8 +52,11 @@ func (w *Worker) Run(ctx context.Context) {
 func (w *Worker) process(ctx context.Context) (bool, error) {
 	worked := false
 	err := w.Store.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var job struct{ ID, Title, Description string }
-		err := tx.Table("cooking.image_generation_jobs AS j").Select("j.id, r.title, r.description").
+		var job struct {
+			ID, Title, Description string
+			ModelID                *string
+		}
+		err := tx.Table("cooking.image_generation_jobs AS j").Select("j.id, r.title, r.description, j.model_id").
 			Joins("JOIN cooking.recipes AS r ON r.id = j.recipe_id").Where("j.status = ?", "PENDING").
 			Order("j.created_at, j.id").
 			Clauses(clause.Locking{Strength: "UPDATE", Table: clause.Table{Name: "j"}, Options: "SKIP LOCKED"}).
@@ -67,7 +70,7 @@ func (w *Worker) process(ctx context.Context) (bool, error) {
 		worked = true
 		jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 		defer cancel()
-		data, err := w.Generator.GenerateImage(jobCtx, job.Title, job.Description)
+		data, err := w.Generator.GenerateImage(jobCtx, job.Title, job.Description, job.ModelID)
 		if err == nil {
 			err = w.Storage.SaveImage(jobCtx, job.ID, data)
 		}
