@@ -3,6 +3,7 @@ WORKDIR /usr/src/app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . ./
+RUN npx --no-install tsc --noEmit
 
 FROM docker.io/library/node:26-slim
 RUN apt-get update && apt-get install -y curl

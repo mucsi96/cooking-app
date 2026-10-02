@@ -14,7 +14,6 @@ import {
   MAT_RIPPLE_GLOBAL_OPTIONS,
   RippleGlobalOptions,
 } from '@angular/material/core';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideAngularMaterialTheme } from '@mucsi96/angular-material-theme';
 import { routes } from './app.routes';
 import { errorInterceptor } from './utils/error.interceptor';
@@ -46,7 +45,6 @@ export function getAppConfig(environment: EnvironmentConfig): ApplicationConfig 
         ])
       ),
       { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
-      provideAnimationsAsync(),
       provideAngularMaterialTheme(),
       { provide: ENVIRONMENT_CONFIG, useValue: environment },
       provideOidcAuth(environment),
