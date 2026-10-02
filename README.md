@@ -199,6 +199,7 @@ read at startup. Explicit environment variables override Key Vault values.
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` |
 | `OPENAI_API_KEY` | `openai-api-key` |
 | `OPENAI_BASE_URL` | `https://api.openai.com` (origin, without `/v1`) |
+| `OPENAI_ALLOW_LOCAL_HTTP` | `false`; set to `true` only for local HTTP mocks. The SDK restricts this opt-in to localhost or literal loopback addresses and bypasses proxies for those requests. The E2E pod enables it explicitly. |
 | `OPENAI_IMAGE_MODEL` | `gpt-image-2.5-sunburst` |
 | `STORAGE_DIRECTORY` | `./storage`; mount persistent storage in production |
 | `SERVER_PORT` | 8063 locally, 8080 in the image |

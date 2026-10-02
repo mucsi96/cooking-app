@@ -39,9 +39,18 @@ type Client struct {
 }
 
 func New(c config.Config, settings *models.Store) *Client {
+	openaiOptions := []openaioption.RequestOption{
+		openaioption.WithAPIKey(c.OpenAIKey),
+		openaioption.WithBaseURL(strings.TrimRight(c.OpenAIURL, "/") + "/v1/"),
+		openaioption.WithRequestTimeout(3 * time.Minute),
+		openaioption.WithMaxRetries(1),
+	}
+	if c.OpenAIAllowLocalHTTP {
+		openaiOptions = append(openaiOptions, openaioption.WithUnsafeAllowHTTP())
+	}
 	return &Client{
 		anthropic: anthropic.NewClient(anthropicoption.WithAPIKey(c.AnthropicKey), anthropicoption.WithBaseURL(c.AnthropicURL), anthropicoption.WithRequestTimeout(2*time.Minute), anthropicoption.WithMaxRetries(1)),
-		openai:    openai.NewClient(openaioption.WithAPIKey(c.OpenAIKey), openaioption.WithBaseURL(strings.TrimRight(c.OpenAIURL, "/")+"/v1/"), openaioption.WithRequestTimeout(3*time.Minute), openaioption.WithMaxRetries(1)),
+		openai:    openai.NewClient(openaiOptions...),
 		settings:  settings, imageModel: openai.ImageModel(c.OpenAIModel),
 	}
 }
