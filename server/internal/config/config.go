@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -20,20 +21,21 @@ type Environment struct {
 }
 
 type Config struct {
-	Environment      Environment
-	Port             string
-	ManagementPort   string
-	DatabaseURL      string
-	DatabaseUser     string
-	DatabasePassword string
-	Issuer           string
-	StorageDirectory string
-	AnthropicKey     string
-	AnthropicURL     string
-	AnthropicModel   string
-	OpenAIKey        string
-	OpenAIURL        string
-	OpenAIModel      string
+	Environment          Environment
+	Port                 string
+	ManagementPort       string
+	DatabaseURL          string
+	DatabaseUser         string
+	DatabasePassword     string
+	Issuer               string
+	StorageDirectory     string
+	AnthropicKey         string
+	AnthropicURL         string
+	AnthropicModel       string
+	OpenAIKey            string
+	OpenAIURL            string
+	OpenAIModel          string
+	OpenAIAllowLocalHTTP bool
 }
 
 // Load resolves secrets before constructing dependencies. Environment variables
@@ -76,6 +78,10 @@ func Load(ctx context.Context) (Config, error) {
 		}
 		return defaultValue
 	}
+	allowLocalHTTP, err := strconv.ParseBool(get("OPENAI_ALLOW_LOCAL_HTTP", "", "false"))
+	if err != nil {
+		return Config{}, fmt.Errorf("OPENAI_ALLOW_LOCAL_HTTP: %w", err)
+	}
 	c := Config{
 		Environment: Environment{
 			TenantID: get("TENANT_ID", "tenant-id", ""), ClientID: get("SPA_CLIENT_ID", "spa-client-id", ""),
@@ -89,7 +95,8 @@ func Load(ctx context.Context) (Config, error) {
 		AnthropicKey:     get("ANTHROPIC_API_KEY", "claude-api-key", ""), AnthropicURL: get("ANTHROPIC_BASE_URL", "", "https://api.anthropic.com"),
 		AnthropicModel: get("ANTHROPIC_MODEL", "", "claude-sonnet-4-6"),
 		OpenAIKey:      get("OPENAI_API_KEY", "openai-api-key", ""), OpenAIURL: get("OPENAI_BASE_URL", "", "https://api.openai.com"),
-		OpenAIModel: get("OPENAI_IMAGE_MODEL", "", "gpt-image-2.5-sunburst"),
+		OpenAIModel:          get("OPENAI_IMAGE_MODEL", "", "gpt-image-2.5-sunburst"),
+		OpenAIAllowLocalHTTP: allowLocalHTTP,
 	}
 	c.Issuer = get("OIDC_ISSUER", "", "https://login.microsoftonline.com/"+c.Environment.TenantID+"/v2.0")
 	for name, value := range map[string]string{"DB_URL": c.DatabaseURL, "API_CLIENT_ID": c.Environment.APIClientID, "ANTHROPIC_API_KEY": c.AnthropicKey, "OPENAI_API_KEY": c.OpenAIKey} {

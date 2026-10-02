@@ -129,6 +129,8 @@ spec:
           value: mock-openai-key
         - name: OPENAI_BASE_URL
           value: http://localhost:3061
+        - name: OPENAI_ALLOW_LOCAL_HTTP
+          value: "true"
         - name: STORAGE_DIRECTORY
           value: /storage
         - name: MOCK_OAUTH2_SERVER_URI
