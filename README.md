@@ -227,8 +227,9 @@ build argument is needed. Replace `SPRING_ACTUATOR_PORT` with `MANAGEMENT_PORT`
 in custom deployment configurations. The shared `mucsi96/go-app` chart preserves the existing
 release name, workload identity service account and `cooking-pvc` volume.
 
-The GitHub pipeline runs Playwright E2E tests, publishes versioned images and
-tags the exact built commit using `target_commitish`. `scripts/deploy.sh` uses
+The GitHub pipeline runs Playwright E2E tests, publishes GHCR SHA-tagged images and
+creates component releases when source changes, tagging the built commit using
+`target_commitish`. `scripts/deploy.sh` uses
 the shared `mucsi96/go-app` and `mucsi96/client-app` charts. The container's
 `GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
 
@@ -239,6 +240,34 @@ PVC, identity and resource values. The initial published release is `go-app`
 1.0.0. `scripts/deploy.sh` resolves its latest published version through the
 shared Helm repository, just as it did for `spring-app`, and passes that version
 explicitly to `helm upgrade`.
+
+### Image publishing
+
+After tests pass, main pushes and manual `Pipeline` runs publish both images to
+GHCR with `GITHUB_TOKEN` and job-scoped `packages: write` permission, following
+`observatory-app`:
+
+```text
+ghcr.io/mucsi96/cooking-app-server:sha-<full commit SHA>
+ghcr.io/mucsi96/cooking-app-client:sha-<full commit SHA>
+```
+
+Both images are published for each run, including workflow-only changes.
+Component version detection controls GitHub releases only. Publication and
+rollout are serialized, and deployment uses the same commit's image pair.
+Make both GHCR packages public after their first publication, then rerun the
+deploy job so Kubernetes can pull them anonymously.
+
+For manual deployment, provide explicit immutable images:
+
+```bash
+AZURE_KEYVAULT_NAME=p07-cooking \
+SERVER_IMAGE=ghcr.io/mucsi96/cooking-app-server:sha-<full-commit> \
+CLIENT_IMAGE=ghcr.io/mucsi96/cooking-app-client:sha-<full-commit> \
+bash scripts/deploy.sh
+```
+
+The script also accepts GHCR images pinned by `@sha256:<digest>`.
 
 ### Default ports
 
