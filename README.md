@@ -227,7 +227,7 @@ build argument is needed. Replace `SPRING_ACTUATOR_PORT` with `MANAGEMENT_PORT`
 in custom deployment configurations. The shared `mucsi96/go-app` chart preserves the existing
 release name, workload identity service account and `cooking-pvc` volume.
 
-The GitHub pipeline runs Playwright E2E tests, publishes GHCR SHA-tagged images and
+The GitHub pipeline runs Playwright E2E tests, publishes numbered GHCR images and
 creates component releases when source changes, tagging the built commit using
 `target_commitish`. `scripts/deploy.sh` uses
 the shared `mucsi96/go-app` and `mucsi96/client-app` charts. The container's
@@ -243,27 +243,31 @@ explicitly to `helm upgrade`.
 
 ### Image publishing
 
-After tests pass, main pushes and manual `Pipeline` runs publish both images to
+After tests pass, main pushes and manual `Pipeline` runs publish changed components to
 GHCR with `GITHUB_TOKEN` and job-scoped `packages: write` permission, following
-`observatory-app`:
+`observatory-app` for registry authentication while retaining numbered versions:
 
 ```text
-ghcr.io/mucsi96/cooking-app-server:sha-<full commit SHA>
-ghcr.io/mucsi96/cooking-app-client:sha-<full commit SHA>
+ghcr.io/mucsi96/cooking-app-server:<server version>
+ghcr.io/mucsi96/cooking-app-client:<client version>
 ```
 
-Both images are published for each run, including workflow-only changes.
-Component version detection controls GitHub releases only. Publication and
-rollout are serialized, and deployment uses the same commit's image pair.
+Each component publishes only when `get_next_version.outputs.hasNextVersion`
+is `true`, using `get_next_version.outputs.version` as its image tag. Unchanged
+components retain the version of their last reachable `server-N` / `client-N`
+release. Both resolved image references are passed directly to deployment.
+Publication and rollout are serialized. The GHCR source label added to each
+production Dockerfile triggers both first publications through normal version
+detection; subsequent workflow-only changes skip image publication.
 Make both GHCR packages public after their first publication, then rerun the
 deploy job so Kubernetes can pull them anonymously.
 
-For manual deployment, provide explicit immutable images:
+For manual deployment, provide explicit versioned images:
 
 ```bash
 AZURE_KEYVAULT_NAME=p07-cooking \
-SERVER_IMAGE=ghcr.io/mucsi96/cooking-app-server:sha-<full-commit> \
-CLIENT_IMAGE=ghcr.io/mucsi96/cooking-app-client:sha-<full-commit> \
+SERVER_IMAGE=ghcr.io/mucsi96/cooking-app-server:42 \
+CLIENT_IMAGE=ghcr.io/mucsi96/cooking-app-client:17 \
 bash scripts/deploy.sh
 ```
 

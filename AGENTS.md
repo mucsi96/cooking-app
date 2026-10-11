@@ -118,11 +118,14 @@ Authentication stays enabled during tests, using a mock OIDC provider.
   releases use the shared `mucsi96/client-app` chart. Keep `scripts/deploy.sh`
   aligned with the original shared-chart workflow and values.
 - Release tags must point at the image's commit: `target_commitish: ${{ github.sha }}`.
-  Component releases are skipped when their directory has not changed since its tag;
-  image publication must always run after tests on main pushes and manual runs.
+  Publish component releases and images only when
+  `get_next_version.outputs.hasNextVersion == 'true'`; skip unchanged components.
 - Publish server/client images to GHCR with `GITHUB_TOKEN`, job-scoped `packages: write`,
-  and `sha-${{ github.sha }}` tags. Serialize publication and rollout. Deploy that
-  exact commit's `SERVER_IMAGE` and `CLIENT_IMAGE`; require full SHA tags or digests.
+  and `get_next_version.outputs.version` tags. Serialize publication and rollout.
+  Resolve unchanged images from their last reachable component release tag using
+  the same `git describe` selection as get-next-version. Pass both resolved image
+  references to deployment; require numbered GHCR tags or digests. Production
+  Dockerfile source labels trigger both first GHCR publications as packaging changes.
   Both packages must be public for anonymous Kubernetes pulls. See README for inputs.
 
 ## Commands and tests
