@@ -122,9 +122,10 @@ Authentication stays enabled during tests, using a mock OIDC provider.
   `get_next_version.outputs.hasNextVersion == 'true'`; skip unchanged components.
 - Publish server/client images to GHCR with `GITHUB_TOKEN`, job-scoped `packages: write`,
   and `get_next_version.outputs.version` tags. Serialize publication and rollout.
-  Resolve unchanged images from their last reachable component release tag using
-  the same `git describe` selection as get-next-version. Pass both resolved image
-  references to deployment; require numbered GHCR tags or digests. Production
+  The action always returns `version` and `tag`, including the current reachable
+  release when unchanged. Forward that version output to deployment without a
+  consumer-side tag lookup; require numbered GHCR tags or digests. Merge the
+  action change linked in README before the application MR. Production
   Dockerfile source labels trigger both first GHCR publications as packaging changes.
   Both packages must be public for anonymous Kubernetes pulls. See README for inputs.
 

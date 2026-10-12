@@ -200,7 +200,7 @@ jobs:
       contents: write
       packages: write
     outputs:
-      image: ${{ steps.image.outputs.image }}
+      version: ${{ steps.get_next_version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -225,18 +225,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve server image
-        id: image
-        env:
-          COMPONENT: server
-          IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}-server
-          HAS_NEXT_VERSION: ${{ steps.get_next_version.outputs.hasNextVersion }}
-          NEXT_VERSION: ${{ steps.get_next_version.outputs.version }}
-        run: |
-          output=$(bash scripts/resolve_image.sh)
-          echo "$output" >> "$GITHUB_OUTPUT"
-          echo "SERVER_IMAGE=${output#image=}" >> "$GITHUB_ENV"
-
       # Runtime configuration lets the same build serve every environment.
       - name: Build server image
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
@@ -244,18 +232,22 @@ jobs:
         with:
           context: server
           load: true
-          tags: ${{ env.SERVER_IMAGE }}
+          tags: ghcr.io/${{ github.repository }}-server:${{ steps.get_next_version.outputs.version }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha,scope=server
           cache-to: type=gha,mode=max,scope=server
 
       - name: Check the server executable runs
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        env:
+          SERVER_IMAGE: ghcr.io/${{ github.repository }}-server:${{ steps.get_next_version.outputs.version }}
         run: |
           timeout 60 docker run --rm "$SERVER_IMAGE" --version
 
       - name: Push server image
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
+        env:
+          SERVER_IMAGE: ghcr.io/${{ github.repository }}-server:${{ steps.get_next_version.outputs.version }}
         run: docker push "$SERVER_IMAGE"
 
       # Tag the commit whose versioned image was published, even if main has advanced.
@@ -279,7 +271,7 @@ jobs:
       contents: write
       packages: write
     outputs:
-      image: ${{ steps.image.outputs.image }}
+      version: ${{ steps.get_next_version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -291,15 +283,6 @@ jobs:
         with:
           prefix: 'client'
           src: client
-
-      - name: Resolve client image
-        id: image
-        env:
-          COMPONENT: client
-          IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}-client
-          HAS_NEXT_VERSION: ${{ steps.get_next_version.outputs.hasNextVersion }}
-          NEXT_VERSION: ${{ steps.get_next_version.outputs.version }}
-        run: bash scripts/resolve_image.sh >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         if: steps.get_next_version.outputs.hasNextVersion == 'true'
@@ -366,6 +349,6 @@ jobs:
       - name: Deploy to Kubernetes
         env:
           AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
-          SERVER_IMAGE: ${{ needs.publish-server.outputs.image }}
-          CLIENT_IMAGE: ${{ needs.publish-client.outputs.image }}
+          SERVER_IMAGE: ghcr.io/${{ github.repository }}-server:${{ needs.publish-server.outputs.version }}
+          CLIENT_IMAGE: ghcr.io/${{ github.repository }}-client:${{ needs.publish-client.outputs.version }}
         run: scripts/deploy.sh
