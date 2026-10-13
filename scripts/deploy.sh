@@ -3,7 +3,13 @@
 set -e  # Exit immediately if a command exits with a non-zero status
 
 : "${AZURE_KEYVAULT_NAME:?Environment variable AZURE_KEYVAULT_NAME is required}"
-: "${DOCKERHUB_USERNAME:?Environment variable DOCKERHUB_USERNAME is required}"
+: "${SERVER_IMAGE:?Set the versioned server image to deploy}"
+: "${CLIENT_IMAGE:?Set the versioned client image to deploy}"
+if [[ ! "$SERVER_IMAGE" =~ ^ghcr\.io/.+(:[1-9][0-9]*|@sha256:[a-f0-9]{64})$ ]] ||
+   [[ ! "$CLIENT_IMAGE" =~ ^ghcr\.io/.+(:[1-9][0-9]*|@sha256:[a-f0-9]{64})$ ]]; then
+    printf '%s\n' 'SERVER_IMAGE and CLIENT_IMAGE must use GHCR with a release version or sha256 digest.' >&2
+    exit 1
+fi
 
 AZURE_KEYVAULT_ENDPOINT="https://${AZURE_KEYVAULT_NAME}.vault.azure.net/"
 SERVER_RELEASE_NAME=cooking-server
@@ -21,10 +27,6 @@ trap 'rm -f "$KUBECONFIG"' EXIT
 HOSTNAME=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name hostname --query value -o tsv)
 API_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name api-client-id --query value -o tsv)
 
-# Get latest tags for both server and client
-serverLatestTag=$(curl -s "https://registry.hub.docker.com/v2/repositories/$DOCKERHUB_USERNAME/cooking-app-server/tags" | jq -r '.results | map(select(.name != "latest")) | sort_by(.last_updated) | reverse | .[0].name')
-clientLatestTag=$(curl -s "https://registry.hub.docker.com/v2/repositories/$DOCKERHUB_USERNAME/cooking-app-client/tags" | jq -r '.results | map(select(.name != "latest")) | sort_by(.last_updated) | reverse | .[0].name')
-
 echo "Updating Helm repositories..."
 # The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
 helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
@@ -32,7 +34,7 @@ helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
 
-echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag using go-app chart $goAppChartVersion"
+echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 
 # CPU limits are intentionally omitted for both services (limits.cpu=null
 # clears the chart default): on a single-user node they only throttle
@@ -43,7 +45,7 @@ echo "Deploying server: $DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag 
 helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --install \
     --version $goAppChartVersion \
-    --set image=$DOCKERHUB_USERNAME/cooking-app-server:$serverLatestTag \
+    --set-string image="$SERVER_IMAGE" \
     --set entryPoint=web \
     --set host=$HOSTNAME \
     --set basePath=/api \
@@ -64,12 +66,12 @@ helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --set resources.limits.cpu=null \
     --wait
 
-echo "Deploying client: $DOCKERHUB_USERNAME/cooking-app-client:$clientLatestTag using client-app chart $clientAppChartVersion"
+echo "Deploying client: $CLIENT_IMAGE using client-app chart $clientAppChartVersion"
 
 helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --install \
     --version $clientAppChartVersion \
-    --set image=$DOCKERHUB_USERNAME/cooking-app-client:$clientLatestTag \
+    --set-string image="$CLIENT_IMAGE" \
     --set host=$HOSTNAME \
     --set entryPoint=web \
     --set resources.requests.memory=8Mi \

@@ -227,8 +227,9 @@ build argument is needed. Replace `SPRING_ACTUATOR_PORT` with `MANAGEMENT_PORT`
 in custom deployment configurations. The shared `mucsi96/go-app` chart preserves the existing
 release name, workload identity service account and `cooking-pvc` volume.
 
-The GitHub pipeline runs Playwright E2E tests, publishes versioned images and
-tags the exact built commit using `target_commitish`. `scripts/deploy.sh` uses
+The GitHub pipeline runs Playwright E2E tests, publishes numbered GHCR images and
+creates component releases when source changes, tagging the built commit using
+`target_commitish`. `scripts/deploy.sh` uses
 the shared `mucsi96/go-app` and `mucsi96/client-app` charts. The container's
 `GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
 
