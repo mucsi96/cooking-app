@@ -124,10 +124,9 @@ Authentication stays enabled during tests, using a mock OIDC provider.
   and `get_next_version.outputs.version` tags. Serialize publication and rollout.
   The action always returns `version` and `tag`, including the current reachable
   release when unchanged. Forward that version output to deployment without a
-  consumer-side tag lookup; require numbered GHCR tags or digests. Merge the
-  action change linked in README before the application MR. Production
+  consumer-side tag lookup; require numbered GHCR tags or digests. Production
   Dockerfile source labels trigger both first GHCR publications as packaging changes.
-  Both packages must be public for anonymous Kubernetes pulls. See README for inputs.
+  Both packages must be public for anonymous Kubernetes pulls.
 
 ## Commands and tests
 
