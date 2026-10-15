@@ -35,8 +35,10 @@ goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0]
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
 
 helm status cooking-oauth2-proxy --namespace cooking >/dev/null
-helm show values mucsi96/go-app --version "$goAppChartVersion" | grep -q '^routeMiddlewares:'
-helm show values mucsi96/client-app --version "$clientAppChartVersion" | grep -q '^routeMiddlewares:'
+helm show values mucsi96/go-app --version "$goAppChartVersion" | grep -q '^routeFilters:'
+helm show values mucsi96/client-app --version "$clientAppChartVersion" | grep -q '^routeFilters:'
+API_ROUTE_FILTERS=$(kubectl --namespace cooking get configmap cooking-oauth2-proxy-route-filters -o jsonpath='{.data.api}' | jq -ce 'select(type == "array" and any(.[]; .type == "ExtensionRef" and .extensionRef.name == "cooking-oauth2-proxy-api"))')
+CLIENT_ROUTE_FILTERS=$(kubectl --namespace cooking get configmap cooking-oauth2-proxy-route-filters -o jsonpath='{.data.document}' | jq -ce 'select(type == "array" and any(.[]; .type == "ExtensionRef" and .extensionRef.name == "cooking-oauth2-proxy-document"))')
 
 echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 
@@ -53,7 +55,7 @@ helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --set entryPoint=web \
     --set host=$HOSTNAME \
     --set basePath=/api \
-    --set 'routeMiddlewares[0]=cooking-oauth2-proxy-api' \
+    --set-json routeFilters="$API_ROUTE_FILTERS" \
     --set clientId=$API_CLIENT_ID \
     --set serviceAccountName=cooking-api-workload-identity \
     --set env.AZURE_KEYVAULT_ENDPOINT=$AZURE_KEYVAULT_ENDPOINT \
@@ -80,7 +82,7 @@ helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --set-string image="$CLIENT_IMAGE" \
     --set host=$HOSTNAME \
     --set entryPoint=web \
-    --set 'routeMiddlewares[0]=cooking-oauth2-proxy-document' \
+    --set-json routeFilters="$CLIENT_ROUTE_FILTERS" \
     --set resources.requests.memory=8Mi \
     --set resources.requests.cpu=5m \
     --set resources.limits.memory=32Mi \

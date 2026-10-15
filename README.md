@@ -227,7 +227,9 @@ PostgreSQL. Logs are structured JSON via `log/slog`.
 Publish the shared ForwardAuth/app charts and provision the platform-owned
 `cooking-oauth2-proxy` release before deploying these builds. The deploy script
 checks that release and middleware support, sets the production browser origin,
-and attaches document/API middleware. The platform migration temporarily retains
+and reads document/API HTTPRoute filter policies from the auth release's
+non-secret ConfigMap. Header/cache controls use standard Gateway API filters;
+only external authentication needs a Traefik ExtensionRef. The platform temporarily retains
 SPA redirects during preprovisioning, then removes them after app cutover.
 Use the complete test pod at `http://localhost:8160` for local cookie auth.
 Standalone hot reload requires the same-origin gateway in front of the dev server.
