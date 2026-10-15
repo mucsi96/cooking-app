@@ -1,18 +1,58 @@
 http:
   routers:
+    machine-import:
+      rule: "Path(`/api/integrations/recipes/import`) && Method(`POST`)"
+      priority: 20
+      service: server
+      entryPoints: [web]
     server:
       rule: "PathPrefix(`/api`)"
       priority: 2
       service: server
+      middlewares: [strip-auth, api-auth]
       entryPoints:
         - web
     client:
       rule: "PathPrefix(`/`)"
       priority: 1
       service: client
+      middlewares: [strip-auth, document-auth]
       entryPoints:
         - web
+    oauth:
+      rule: "Path(`/oauth2/start`) || Path(`/oauth2/callback`) || Path(`/oauth2/sign_in`) || Path(`/oauth2/sign_out`) || Path(`/oauth2/userinfo`)"
+      priority: 10
+      service: oauth
+      entryPoints: [web]
+  middlewares:
+    strip-auth:
+      headers:
+        customRequestHeaders:
+          Authorization: ""
+          X-Auth-Request-Email: ""
+    document-auth:
+      forwardAuth:
+        address: http://127.0.0.1:4180/
+        trustForwardHeader: false
+        forwardBody: false
+        preserveLocationHeader: true
+        maxResponseBodySize: 65536
+        authRequestHeaders: [Cookie, Accept]
+        addAuthCookiesToResponse: [cooking-test, cooking-test_csrf]
+    api-auth:
+      forwardAuth:
+        address: http://127.0.0.1:4180/oauth2/auth
+        trustForwardHeader: false
+        forwardBody: false
+        authRequestHeaders: [Cookie, Accept]
+        maxResponseBodySize: 65536
+        authResponseHeaders: [Authorization]
+        addAuthCookiesToResponse: [cooking-test, cooking-test_csrf]
   services:
+    oauth:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:4180
     server:
       loadBalancer:
         servers:

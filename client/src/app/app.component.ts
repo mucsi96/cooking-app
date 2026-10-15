@@ -27,6 +27,7 @@ export class AppComponent {
 
   isAuthenticated = this.authService.isAuthenticated;
   authError = this.authService.authError;
+  userData = this.authService.userData;
 
   retryLogin(): void {
     this.authService.login();

@@ -1,88 +1,85 @@
 import { test, expect } from '../fixtures';
+import { getRecipes } from '../utils';
 
-const AUTHORITY_ERROR_URL =
-  '/?error=invalid_client&error_description=Requested+scope+does+not+exist+on+the+resource&state=stale-state';
-
-test('shows a clear error instead of redirecting again when the authority rejects the sign-in', async ({
-  page,
-}) => {
-  await page.goto(AUTHORITY_ERROR_URL);
-
-  await expect(
-    page.getByRole('heading', { name: 'Sign-in failed' })
-  ).toBeVisible();
-  await expect(
-    page.getByText('Requested scope does not exist on the resource')
-  ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
-
-  // No automatic redirect back to the authority - the app must stay put
-  // (a redirect here is the start of an infinite loop).
-  await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe('/');
-  await expect(
-    page.getByRole('heading', { name: 'Sign-in failed' })
-  ).toBeVisible();
-});
-
-test('recovers with a user-initiated retry after an authority error', async ({
-  page,
-}) => {
-  await page.goto(AUTHORITY_ERROR_URL);
-
-  await page.getByRole('button', { name: 'Try again' }).click();
-
-  await expect(page).toHaveTitle('Receptek');
-  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('TU');
-});
-
-test('reauthenticates immediately when the refresh token expires', async ({
-  page,
-}) => {
+test('uses token-free browser identity and an HttpOnly session', async ({ page, context, request }) => {
+  expect((await request.get('/api/recipes')).status()).toBe(401);
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('TU');
+  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('O');
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('oidc.') || key.startsWith('msal.')))).toEqual([]);
+  expect((await context.cookies()).find(cookie => cookie.name === 'cooking-test')?.httpOnly).toBe(true);
+  expect(await (await page.request.get('/oauth2/userinfo')).text()).not.toMatch(/access_token|refresh_token|id_token/);
+});
 
-  const refreshToken = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((item) =>
-      item.startsWith('oidc.user:')
-    );
-    return key ? JSON.parse(localStorage.getItem(key)!).refresh_token : null;
-  });
-  expect(refreshToken).toBeTruthy();
+test('preserves a recipe draft through expired-session reauthentication', async ({ page }) => {
+  await page.goto('/importalas');
+  const draft = page.getByLabel('Recept szövege vagy webcíme');
+  await draft.fill('Goulash recipe draft');
+  await page.request.get('/oauth2/sign_out', { maxRedirects: 0 });
+  await page.getByRole('button', { name: 'Importálás', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Bejelentkezés szükséges' })).toBeVisible();
+  await expect(draft).toHaveValue('Goulash recipe draft');
+  expect(await getRecipes()).toHaveLength(0);
+  const originalURL = page.url();
+  const popup = page.waitForEvent('popup');
+  await page.getByRole('button', { name: 'Újra bejelentkezem' }).click();
+  await (await popup).waitForEvent('close');
+  await expect(page.getByRole('heading', { name: 'Bejelentkezés szükséges' })).toBeHidden();
+  await expect(draft).toHaveValue('Goulash recipe draft');
+  expect(page.url()).toBe(originalURL);
+  await page.getByRole('button', { name: 'Importálás', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
+});
 
-  const environment = await (await page.request.get('/api/environment')).json();
-  const consumed = await page.request.post(
-    `${environment.mockOAuth2ServerUri}/default/token`,
-    {
-      form: { grant_type: 'refresh_token', refresh_token: refreshToken },
-    }
-  );
-  expect(consumed.ok()).toBeTruthy();
+test('rejects sibling and missing Origins without creating a recipe', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('O');
+  for (const origin of [undefined, 'null', 'http://sibling.localhost:8160']) {
+    const response = await page.request.post('/api/recipes/import', { headers: origin ? { Origin: origin } : {}, data: { text: 'Goulash' } });
+    expect(response.status()).toBe(403);
+  }
+  expect(await getRecipes()).toHaveLength(0);
+  expect((await page.request.post('/api/integrations/recipes/import', { data: { text: 'Goulash' } })).status()).toBe(401);
+});
 
-  let authorizationRequests = 0;
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname === '/default/authorize') {
-      authorizationRequests += 1;
-    }
-  });
+test('renews concurrent API requests server-side without navigating the form', async ({ page }) => {
+  await page.goto('/importalas');
+  const draft = page.getByLabel('Recept szövege vagy webcíme');
+  await draft.fill('Unsaved recipe');
+  await page.waitForTimeout(6100);
+  expect(await page.evaluate(async () => Promise.all(Array.from({ length: 4 }, async () => (await fetch('/api/recipes')).status)))).toEqual([200, 200, 200, 200]);
+  await expect(draft).toHaveValue('Unsaved recipe');
+});
 
-  await page.evaluate(() => {
-    const originalDateNow = Date.now;
-    Date.now = () => originalDateNow() + 31_000;
-    window.dispatchEvent(new Event('focus'));
-    Date.now = originalDateNow;
-  });
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const key = Object.keys(localStorage).find((item) =>
-          item.startsWith('oidc.user:')
-        );
-        return key ? JSON.parse(localStorage.getItem(key)!).refresh_token : null;
-      })
-    )
-    .not.toBe(refreshToken);
-  await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('TU');
-  await expect(page.getByText(/^An error occurred/)).not.toBeVisible();
-  expect(authorizationRequests).toBe(1);
+test('the household user retains Cooking access', async ({ page, request }) => {
+  await request.post('http://localhost:8060/test/reset', { data: { user: 'family' } });
+  try {
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('F');
+    expect((await page.request.get('/api/recipes')).status()).toBe(200);
+  } finally {
+    await request.post('http://localhost:8060/test/reset', { data: { user: 'owner' } });
+  }
+});
+
+test('API roles remain enforced after successful Web login', async ({ page, request }) => {
+  await request.post('http://localhost:8060/test/reset', { data: { user: 'owner', mode: 'missing_api_role' } });
+  try {
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Felhasználói menü' })).toHaveText('O');
+    expect((await page.request.get('/api/recipes')).status()).toBe(403);
+    await expect(page).toHaveURL('/');
+    await expect(page.getByRole('heading', { name: 'Bejelentkezés szükséges' })).toBeHidden();
+  } finally {
+    await request.post('http://localhost:8060/test/reset', { data: { user: 'owner' } });
+  }
+});
+
+test('explicit logout clears the session and removes the mounted form', async ({ page }) => {
+  await page.goto('/importalas');
+  await page.getByLabel('Recept szövege vagy webcíme').fill('Private draft');
+  await page.getByRole('button', { name: 'Felhasználói menü' }).click();
+  await page.getByRole('menuitem', { name: 'Kijelentkezés' }).click();
+  await expect(page.getByRole('heading', { name: 'Bejelentkezés szükséges' })).toBeVisible();
+  await expect(page.getByLabel('Recept szövege vagy webcíme')).toBeHidden();
+  expect((await page.request.get('/api/recipes')).status()).toBe(401);
 });

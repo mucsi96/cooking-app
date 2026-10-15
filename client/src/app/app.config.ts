@@ -17,11 +17,9 @@ import {
 import { provideAngularMaterialTheme } from '@mucsi96/angular-material-theme';
 import { routes } from './app.routes';
 import { errorInterceptor } from './utils/error.interceptor';
-import { authRetryInterceptor } from './utils/auth-retry.interceptor';
+import { authInterceptor } from './utils/auth.interceptor';
 import { timezoneInterceptor } from './utils/timezone.interceptor';
 import { AuthService } from './auth.service';
-import { tokenInterceptor } from './utils/token.interceptor';
-import { provideOidcAuth } from './auth.config';
 import {
   EnvironmentConfig,
   ENVIRONMENT_CONFIG,
@@ -39,15 +37,13 @@ export function getAppConfig(environment: EnvironmentConfig): ApplicationConfig 
       provideHttpClient(
         withInterceptors([
           errorInterceptor,
-          authRetryInterceptor,
-          tokenInterceptor,
+          authInterceptor,
           timezoneInterceptor,
         ])
       ),
       { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
       provideAngularMaterialTheme(),
       { provide: ENVIRONMENT_CONFIG, useValue: environment },
-      provideOidcAuth(environment),
       provideAppInitializer(() => inject(AuthService).init()),
     ],
   };

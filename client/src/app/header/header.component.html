@@ -6,4 +6,5 @@
     {{ profile()?.name }}
   </span>
   <a mat-menu-item routerLink="/beallitasok">Beállítások</a>
+  <button mat-menu-item (click)="auth.logout()">Kijelentkezés</button>
 </mat-menu>

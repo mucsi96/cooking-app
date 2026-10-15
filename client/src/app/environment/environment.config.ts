@@ -1,10 +1,6 @@
 import { InjectionToken } from '@angular/core';
 
 export interface EnvironmentConfig {
-  tenantId: string;
-  clientId: string;
-  apiClientId: string;
-  mockOAuth2ServerUri: string;
   clientLogUrl: string;
   clientAppName: string;
 }

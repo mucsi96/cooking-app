@@ -18,7 +18,7 @@ releases deployed through Helm and Traefik.
 | UI | Angular Material and `@mucsi96/angular-material-theme`, Hungarian dark theme |
 | API | Go 1.26, Gin, explicit dependency injection |
 | Database | PostgreSQL 17, GORM with the pgx-backed PostgreSQL driver, Goose SQL migrations |
-| Authentication | OIDC JWT validation with `go-oidc`; MSAL/Azure AD in the browser |
+| Authentication | API JWT validation with `go-oidc`; stock oauth2-proxy ForwardAuth browser sessions |
 | Secrets | Official Azure Identity and Key Vault SDKs |
 | AI | Official Anthropic and OpenAI Go SDKs |
 | Images | Bounded PostgreSQL-backed worker pool, ffmpeg, persistent WebP files |
@@ -44,12 +44,18 @@ All protected endpoints require a signed, unexpired bearer token with the
 configured issuer and audience, the `api-access` scope, and the indicated role.
 Tests exercise the same authentication using a local OIDC provider.
 
+The browser carries an HttpOnly session cookie. Platform-owned oauth2-proxy
+forwards the Cooking API access token; the client has no OAuth library or token
+storage. Browser mutations require the exact configured `BROWSER_ORIGIN`.
+Reauthentication uses a popup and preserves the mounted recipe draft.
+
 | Method | Path | Role |
 | --- | --- | --- |
 | GET | `/api/environment` | Public |
 | GET | `/api/recipes` | `readRecipes` |
 | GET | `/api/recipes/{id}` | `readRecipes` |
 | POST | `/api/recipes/import` | `createRecipe` |
+| POST | `/api/integrations/recipes/import` | `createRecipe`, caller bearer token; no browser session |
 | POST | `/api/recipes/import/image` | `createRecipe` |
 | GET | `/api/recipes/{id}/images` | `readRecipes` |
 | POST | `/api/recipes/{id}/images` | `createRecipe` |
@@ -60,7 +66,10 @@ Tests exercise the same authentication using a local OIDC provider.
 | PUT | `/api/settings/models` | `createRecipe` |
 
 Text import accepts `{"text":"recipe text or https://example.com/recipe"}`.
-This is also the API used by the email import pipeline. Photo import accepts
+Email/background callers use `/api/integrations/recipes/import` with an explicit
+Cooking API bearer token; update existing callers when switching browser routes
+to ForwardAuth. Only this exact machine mutation is exempt from Origin checks.
+Photo import accepts
 multipart form field `image` (maximum 15 MiB). Photo bytes are checked and
 normalized to JPEG before being sent to the selected data model. Image selection accepts
 `{"imageId":"uuid"}` and returns HTTP 204.
@@ -191,9 +200,8 @@ read at startup. Explicit environment variables override Key Vault values.
 | `DB_USERNAME`, `DB_PASSWORD` | `db-username`, `db-password`; may also be in the URL |
 | `TENANT_ID` | `tenant-id` |
 | `API_CLIENT_ID` | `api-client-id`; expected access-token audience |
-| `SPA_CLIENT_ID` | `spa-client-id`; browser application ID |
+| `BROWSER_ORIGIN` | Required exact HTTP(S) browser origin, without a trailing slash |
 | `OIDC_ISSUER` | `https://login.microsoftonline.com/{TENANT_ID}/v2.0` |
-| `MOCK_OAUTH2_SERVER_URI` | Optional local browser OIDC provider URL |
 | `ANTHROPIC_API_KEY` | `claude-api-key` |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` (origin, without `/v1`) |
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` |
@@ -215,6 +223,14 @@ Health checks live on the management listener:
 PostgreSQL. Logs are structured JSON via `log/slog`.
 
 ## Existing installations and deployment
+
+Publish the shared ForwardAuth/app charts and provision the platform-owned
+`cooking-oauth2-proxy` release before deploying these builds. The deploy script
+checks that release and middleware support, sets the production browser origin,
+and attaches document/API middleware. The platform migration temporarily retains
+SPA redirects during preprovisioning, then removes them after app cutover.
+Use the complete test pod at `http://localhost:8160` for local cookie auth.
+Standalone hot reload requires the same-origin gateway in front of the dev server.
 
 The rewrite retains the `cooking` schema, UUIDs, table/column names and
 `images/{id}.webp` storage layout. The first Goose migration adopts existing

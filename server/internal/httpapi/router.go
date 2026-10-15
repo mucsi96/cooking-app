@@ -76,7 +76,7 @@ func validID(c *gin.Context) {
 	c.Next()
 }
 
-func Router(a API, environment config.Environment, authorize Authorizer) *gin.Engine {
+func Router(a API, environment config.Environment, authorize Authorizer, origin string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.SetTrustedProxies(nil)
@@ -88,6 +88,7 @@ func Router(a API, environment config.Environment, authorize Authorizer) *gin.En
 		slog.Info("request", "method", c.Request.Method, "route", c.FullPath(), "status", c.Writer.Status(), "duration", time.Since(start))
 	})
 	r.NoRoute(func(c *gin.Context) { fail(c, 404, "Az oldal nem található.") })
+	r.Use(browserOrigin(origin))
 	r.GET("/api/environment", func(c *gin.Context) { c.JSON(200, environment) })
 	r.GET("/api/models", authorize("createRecipe"), func(c *gin.Context) { c.JSON(200, a.Models.Catalog) })
 	r.GET("/api/settings/models", authorize("createRecipe"), func(c *gin.Context) { v, e := a.Models.Get(c.Request.Context()); respond(c, v, e) })
@@ -109,6 +110,7 @@ func Router(a API, environment config.Environment, authorize Authorizer) *gin.En
 	})
 	r.GET("/api/recipes", authorize("readRecipes"), func(c *gin.Context) { v, e := a.Store.List(c.Request.Context()); respond(c, v, e) })
 	r.POST("/api/recipes/import", authorize("createRecipe"), a.importText)
+	r.POST("/api/integrations/recipes/import", authorize("createRecipe"), a.importText)
 	r.POST("/api/recipes/import/image", authorize("createRecipe"), a.importPhoto)
 	r.GET("/api/recipes/:id", authorize("readRecipes"), validID, func(c *gin.Context) { v, e := a.Store.Get(c.Request.Context(), c.Param("id")); respond(c, v, e) })
 	r.GET("/api/recipes/:id/images", authorize("readRecipes"), validID, func(c *gin.Context) { v, e := a.Store.Candidates(c.Request.Context(), c.Param("id")); respond(c, v, e) })

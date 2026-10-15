@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -12,16 +13,14 @@ import (
 )
 
 type Environment struct {
-	TenantID            string `json:"tenantId"`
-	ClientID            string `json:"clientId"`
-	APIClientID         string `json:"apiClientId"`
-	MockOAuth2ServerURI string `json:"mockOAuth2ServerUri"`
-	ClientLogURL        string `json:"clientLogUrl"`
-	ClientAppName       string `json:"clientAppName"`
+	ClientLogURL  string `json:"clientLogUrl"`
+	ClientAppName string `json:"clientAppName"`
 }
 
 type Config struct {
 	Environment          Environment
+	APIClientID          string
+	BrowserOrigin        string
 	Port                 string
 	ManagementPort       string
 	DatabaseURL          string
@@ -51,7 +50,7 @@ func Load(ctx context.Context) (Config, error) {
 		if err != nil {
 			return Config{}, err
 		}
-		for _, name := range []string{"db-url", "db-username", "db-password", "tenant-id", "api-client-id", "spa-client-id", "claude-api-key", "openai-api-key", "client-log-url"} {
+		for _, name := range []string{"db-url", "db-username", "db-password", "tenant-id", "api-client-id", "claude-api-key", "openai-api-key", "client-log-url"} {
 			env := strings.ToUpper(strings.ReplaceAll(name, "-", "_"))
 			if name == "claude-api-key" {
 				env = "ANTHROPIC_API_KEY"
@@ -84,11 +83,11 @@ func Load(ctx context.Context) (Config, error) {
 	}
 	c := Config{
 		Environment: Environment{
-			TenantID: get("TENANT_ID", "tenant-id", ""), ClientID: get("SPA_CLIENT_ID", "spa-client-id", ""),
-			APIClientID: get("API_CLIENT_ID", "api-client-id", ""), MockOAuth2ServerURI: os.Getenv("MOCK_OAUTH2_SERVER_URI"),
 			ClientLogURL: get("CLIENT_LOG_URL", "client-log-url", ""), ClientAppName: get("CLIENT_APP_NAME", "", "cooking-client"),
 		},
-		Port: get("SERVER_PORT", "", "8063"), ManagementPort: get("MANAGEMENT_PORT", "", "8162"),
+		APIClientID:   get("API_CLIENT_ID", "api-client-id", ""),
+		BrowserOrigin: os.Getenv("BROWSER_ORIGIN"),
+		Port:          get("SERVER_PORT", "", "8063"), ManagementPort: get("MANAGEMENT_PORT", "", "8162"),
 		DatabaseURL:  strings.TrimPrefix(get("DB_URL", "db-url", ""), "jdbc:"),
 		DatabaseUser: get("DB_USERNAME", "db-username", ""), DatabasePassword: get("DB_PASSWORD", "db-password", ""),
 		StorageDirectory: get("STORAGE_DIRECTORY", "", "./storage"),
@@ -98,14 +97,19 @@ func Load(ctx context.Context) (Config, error) {
 		OpenAIModel:          get("OPENAI_IMAGE_MODEL", "", "gpt-image-2.5-sunburst"),
 		OpenAIAllowLocalHTTP: allowLocalHTTP,
 	}
-	c.Issuer = get("OIDC_ISSUER", "", "https://login.microsoftonline.com/"+c.Environment.TenantID+"/v2.0")
-	for name, value := range map[string]string{"DB_URL": c.DatabaseURL, "API_CLIENT_ID": c.Environment.APIClientID, "ANTHROPIC_API_KEY": c.AnthropicKey, "OPENAI_API_KEY": c.OpenAIKey} {
+	tenantID := get("TENANT_ID", "tenant-id", "")
+	c.Issuer = get("OIDC_ISSUER", "", "https://login.microsoftonline.com/"+tenantID+"/v2.0")
+	for name, value := range map[string]string{"DB_URL": c.DatabaseURL, "API_CLIENT_ID": c.APIClientID, "BROWSER_ORIGIN": c.BrowserOrigin, "ANTHROPIC_API_KEY": c.AnthropicKey, "OPENAI_API_KEY": c.OpenAIKey} {
 		if strings.TrimSpace(value) == "" {
 			return Config{}, fmt.Errorf("%s is required", name)
 		}
 	}
-	if c.Environment.TenantID == "" && os.Getenv("OIDC_ISSUER") == "" {
+	if tenantID == "" && os.Getenv("OIDC_ISSUER") == "" {
 		return Config{}, fmt.Errorf("TENANT_ID or OIDC_ISSUER is required")
+	}
+	origin, err := url.Parse(c.BrowserOrigin)
+	if err != nil || (origin.Scheme != "https" && origin.Scheme != "http") || origin.Host == "" || origin.User != nil || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" {
+		return Config{}, fmt.Errorf("BROWSER_ORIGIN must be an exact HTTP(S) origin without a path")
 	}
 	return c, nil
 }

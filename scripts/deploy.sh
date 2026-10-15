@@ -34,6 +34,10 @@ helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
 
+helm status cooking-oauth2-proxy --namespace cooking >/dev/null
+helm show values mucsi96/go-app --version "$goAppChartVersion" | grep -q '^routeMiddlewares:'
+helm show values mucsi96/client-app --version "$clientAppChartVersion" | grep -q '^routeMiddlewares:'
+
 echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 
 # CPU limits are intentionally omitted for both services (limits.cpu=null
@@ -49,10 +53,12 @@ helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --set entryPoint=web \
     --set host=$HOSTNAME \
     --set basePath=/api \
+    --set 'routeMiddlewares[0]=cooking-oauth2-proxy-api' \
     --set clientId=$API_CLIENT_ID \
     --set serviceAccountName=cooking-api-workload-identity \
     --set env.AZURE_KEYVAULT_ENDPOINT=$AZURE_KEYVAULT_ENDPOINT \
     --set env.CLIENT_APP_NAME=$CLIENT_RELEASE_NAME \
+    --set-string env.BROWSER_ORIGIN="https://$HOSTNAME" \
     --set env.STORAGE_DIRECTORY=/app/storage \
     --set persistentVolumeClaims[0].name=cooking-pvc \
     --set persistentVolumeClaims[0].accessMode=ReadWriteOnce \
@@ -74,6 +80,7 @@ helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --set-string image="$CLIENT_IMAGE" \
     --set host=$HOSTNAME \
     --set entryPoint=web \
+    --set 'routeMiddlewares[0]=cooking-oauth2-proxy-document' \
     --set resources.requests.memory=8Mi \
     --set resources.requests.cpu=5m \
     --set resources.limits.memory=32Mi \
