@@ -1,7 +1,6 @@
 <mat-toolbar class="header">
   <nav aria-label="Fő navigáció">
     <span class="brand">Szakácskönyv</span>
-    @if(isAuthenticated()) {
     <div class="primary-navigation">
       <a mat-button routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
         <mat-icon>restaurant_menu</mat-icon>
@@ -13,21 +12,9 @@
       </a>
     </div>
     <app-header></app-header>
-    }
   </nav>
 </mat-toolbar>
 
 <main>
-  @if (authError(); as error) {
-  <div class="auth-error" role="alert">
-    <h1>Bejelentkezés szükséges</h1>
-    <p class="auth-error-details">{{ error }}</p>
-    <button mat-flat-button (click)="retryLogin()">
-      Újra bejelentkezem
-    </button>
-  </div>
-  }
-  @if (userData()) {
-    <router-outlet></router-outlet>
-  }
+  <router-outlet></router-outlet>
 </main>

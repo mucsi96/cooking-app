@@ -103,10 +103,10 @@ test('validates image counts and supports disabling automatic images', async ({ 
   expect((await query('SELECT id FROM cooking.image_generation_jobs')).rowCount).toBe(0);
 });
 
-test('model settings API rejects invalid values and requires authentication', async ({ page, request }) => {
+test('model settings API rejects invalid values and requires authentication', async ({ page, request, apiHeaders }) => {
   await page.goto('/beallitasok');
   await expect(page.getByRole('combobox', { name: 'Recept felismerése', exact: true })).toBeVisible();
-  const headers = { Origin: new URL(page.url()).origin };
+  const headers = { ...apiHeaders, Origin: new URL(page.url()).origin };
   const initial = await (await page.request.get('/api/settings/models', { headers })).json();
   for (const data of [
     { ...initial, extraction: 'unknown-model' },
@@ -120,6 +120,6 @@ test('model settings API rejects invalid values and requires authentication', as
     expect((await page.request.put('/api/settings/models', { headers, data })).status()).toBe(400);
   }
   expect(await (await page.request.get('/api/settings/models', { headers })).json()).toEqual(initial);
-  expect((await request.put('/api/settings/models', { data: initial })).status()).toBe(401);
+  expect((await request.put('/api/settings/models', { headers: { Origin: new URL(page.url()).origin }, data: initial })).status()).toBe(401);
   expect((await request.get('/api/settings/models')).status()).toBe(401);
 });

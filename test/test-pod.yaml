@@ -100,12 +100,6 @@ spec:
           value: api-access
         - name: AUD
           value: mock-api-client-id
-        - name: FIXTURE_CONFIG_FILE
-          value: /config/oidc-clients.json
-      volumeMounts:
-        - name: auth-config
-          mountPath: /config
-          readOnly: true
       livenessProbe:
         httpGet:
           path: /health
@@ -121,6 +115,10 @@ spec:
           value: "8064"
         - name: BROWSER_ORIGIN
           value: http://localhost:8160
+        - name: AUTH_SESSION_URL
+          value: http://localhost:8060/health
+        - name: AUTH_SIGN_IN_URL
+          value: http://localhost:8160/test-login
         - name: MANAGEMENT_PORT
           value: "8162"
         - name: DB_URL
@@ -159,23 +157,6 @@ spec:
         periodSeconds: 2
         failureThreshold: 30
 
-    - name: redis
-      image: docker.io/library/redis:8.2-alpine
-      args: [redis-server, --save, "", --appendonly, "no"]
-      livenessProbe:
-        exec:
-          command: [redis-cli, ping]
-    - name: oauth2-proxy
-      # Podman executes HTTP probes inside the container; Alpine supplies wget.
-      image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.2-alpine
-      args: [--config=/config/oauth2-proxy.cfg, --alpha-config=/config/oauth2-proxy.yaml]
-      volumeMounts:
-        - name: auth-config
-          mountPath: /config
-          readOnly: true
-      livenessProbe:
-        exec:
-          command: [wget, -q, -O, /dev/null, http://127.0.0.1:4180/ping]
     - name: client
       image: localhost/cooking-app-client:test
       livenessProbe:
@@ -187,10 +168,6 @@ spec:
         failureThreshold: 10
 
   volumes:
-    - name: auth-config
-      hostPath:
-        path: test
-        type: Directory
     - name: storage
       emptyDir: {}
     - name: traefik-config

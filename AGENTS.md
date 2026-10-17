@@ -68,13 +68,13 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   `background`, `color`, and `:hover` separately. Retain the intended button variant.
 - The `bt-color` API does not cover text, outlined, icon or menu buttons. Use their
   documented Material APIs instead. Check the installed theme README when changing styles.
-- Keep the shared authentication/interceptor/bootstrap conventions from skeleton-app.
-  HTTP resources must still pass through the authentication and retry interceptors.
+- Keep skeleton-app's generic config-or-redirect bootstrap and read-only userinfo
+  profile resource. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
 - Revoke object URLs on cleanup and cancel reads when the selected resource changes.
 
 ## Architecture
 
-- `client/`: Angular 22, Material UI, MSAL production auth and local OIDC testing.
+- `client/`: public Angular/Material UI SPA; production sessions belong to the platform proxy.
 - `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
 - `server/internal/config/`: environment variables and Azure Key Vault.
 - `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
@@ -103,7 +103,8 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 
 Protected routes require `api-access` scope plus `readRecipes` or `createRecipe`.
 Authentication stays enabled during tests, using a mock OIDC provider.
-`GET /api/environment` is public. See README for the complete route table.
+`GET /api/environment` checks the private proxy session and returns configuration
+or a login redirect. See README for the complete route table.
 
 ## Configuration and deployment
 
@@ -158,5 +159,7 @@ npx playwright test --ui
   Exercise the running application with PostgreSQL and mock OIDC/AI services.
   Do not add Go unit/integration tests or a `go test` CI job.
 - Playwright tests use user-facing roles/labels/text, not implementation selectors.
+- Mock gateway identity/profile data in app fixtures; keep backend JWT/role/Origin
+  checks enabled. Do not run oauth2-proxy/Redis or duplicate platform session-flow tests.
 - Test port overrides: `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL`,
   `TEST_OPENAI_URL`. Never reuse another project's database for tests.

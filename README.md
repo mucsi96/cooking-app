@@ -47,11 +47,17 @@ Tests exercise the same authentication using a local OIDC provider.
 The browser carries an HttpOnly session cookie. Platform-owned oauth2-proxy
 forwards the Cooking API access token; the client has no OAuth library or token
 storage. Browser mutations require the exact configured `BROWSER_ORIGIN`.
-Reauthentication uses a popup and preserves the mounted recipe draft.
+Static HTML/assets and SPA routes are public. Before Angular starts, the generic
+loader requests `/api/environment` with the current relative URL as `returnTo`.
+The environment handler checks the private proxy session and returns configuration
+or a `redirectTo` instruction. The loader follows it without OAuth/session logic.
+There is no auth service/interceptor, route guard or sign-in/out UI. An independent
+read-only `/oauth2/userinfo` resource supplies the profile/settings menu.
+The proxy renews sessions; a lost session re-enters login on the next page load.
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/api/environment` | Public |
+| GET | `/api/environment` | Configuration or server-selected login redirect |
 | GET | `/api/recipes` | `readRecipes` |
 | GET | `/api/recipes/{id}` | `readRecipes` |
 | POST | `/api/recipes/import` | `createRecipe` |
@@ -201,6 +207,8 @@ read at startup. Explicit environment variables override Key Vault values.
 | `TENANT_ID` | `tenant-id` |
 | `API_CLIENT_ID` | `api-client-id`; expected access-token audience |
 | `BROWSER_ORIGIN` | Required exact HTTP(S) browser origin, without a trailing slash |
+| `AUTH_SESSION_URL` | Private proxy session-check URL from AKV deployment configuration |
+| `AUTH_SIGN_IN_URL` | Public proxy login-start URL from AKV deployment configuration |
 | `OIDC_ISSUER` | `https://login.microsoftonline.com/{TENANT_ID}/v2.0` |
 | `ANTHROPIC_API_KEY` | `claude-api-key` |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` (origin, without `/v1`) |
@@ -227,12 +235,17 @@ PostgreSQL. Logs are structured JSON via `log/slog`.
 Publish the shared ForwardAuth/app charts and provision the platform-owned
 `cooking-oauth2-proxy` release before deploying these builds. The deploy script
 checks that release and middleware support, sets the production browser origin,
-and reads document/API HTTPRoute filter policies from the auth release's
-non-secret ConfigMap. Header/cache controls use standard Gateway API filters;
+and reads `forward-auth-config` from the app Azure Key Vault. It contains the
+release name, API route filters and backend session-check/login URLs. Only the
+API receives auth filters; client upgrades reset old values to remove previous
+frontend filters. Header/cache controls use standard Gateway API filters;
 only external authentication needs a Traefik ExtensionRef. The platform temporarily retains
 SPA redirects during preprovisioning, then removes them after app cutover.
-Use the complete test pod at `http://localhost:8160` for local cookie auth.
-Standalone hot reload requires the same-origin gateway in front of the dev server.
+The app tests use mock authentication: Playwright supplies profile data and
+injects a mock-issued bearer token into browser API requests. The mock provider's
+health endpoint stands in for a valid bootstrap session. Backend JWT validation
+and Origin checks stay enabled. Test pods run the app, database, mock OIDC/AI
+services and routing, without oauth2-proxy or Redis. Playwright targets `http://localhost:8160`.
 
 The rewrite retains the `cooking` schema, UUIDs, table/column names and
 `images/{id}.webp` storage layout. The first Goose migration adopts existing

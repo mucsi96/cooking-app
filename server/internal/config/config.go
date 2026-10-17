@@ -21,6 +21,8 @@ type Config struct {
 	Environment          Environment
 	APIClientID          string
 	BrowserOrigin        string
+	AuthSessionURL       string
+	AuthSignInURL        string
 	Port                 string
 	ManagementPort       string
 	DatabaseURL          string
@@ -85,9 +87,11 @@ func Load(ctx context.Context) (Config, error) {
 		Environment: Environment{
 			ClientLogURL: get("CLIENT_LOG_URL", "client-log-url", ""), ClientAppName: get("CLIENT_APP_NAME", "", "cooking-client"),
 		},
-		APIClientID:   get("API_CLIENT_ID", "api-client-id", ""),
-		BrowserOrigin: os.Getenv("BROWSER_ORIGIN"),
-		Port:          get("SERVER_PORT", "", "8063"), ManagementPort: get("MANAGEMENT_PORT", "", "8162"),
+		APIClientID:    get("API_CLIENT_ID", "api-client-id", ""),
+		BrowserOrigin:  os.Getenv("BROWSER_ORIGIN"),
+		AuthSessionURL: os.Getenv("AUTH_SESSION_URL"),
+		AuthSignInURL:  os.Getenv("AUTH_SIGN_IN_URL"),
+		Port:           get("SERVER_PORT", "", "8063"), ManagementPort: get("MANAGEMENT_PORT", "", "8162"),
 		DatabaseURL:  strings.TrimPrefix(get("DB_URL", "db-url", ""), "jdbc:"),
 		DatabaseUser: get("DB_USERNAME", "db-username", ""), DatabasePassword: get("DB_PASSWORD", "db-password", ""),
 		StorageDirectory: get("STORAGE_DIRECTORY", "", "./storage"),
@@ -106,6 +110,12 @@ func Load(ctx context.Context) (Config, error) {
 	}
 	if tenantID == "" && os.Getenv("OIDC_ISSUER") == "" {
 		return Config{}, fmt.Errorf("TENANT_ID or OIDC_ISSUER is required")
+	}
+	for name, value := range map[string]string{"AUTH_SESSION_URL": c.AuthSessionURL, "AUTH_SIGN_IN_URL": c.AuthSignInURL} {
+		endpoint, err := url.Parse(value)
+		if err != nil || (endpoint.Scheme != "https" && endpoint.Scheme != "http") || endpoint.Host == "" || endpoint.User != nil || endpoint.Fragment != "" {
+			return Config{}, fmt.Errorf("%s must be an absolute HTTP(S) URL", name)
+		}
 	}
 	origin, err := url.Parse(c.BrowserOrigin)
 	if err != nil || (origin.Scheme != "https" && origin.Scheme != "http") || origin.Host == "" || origin.User != nil || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" {
