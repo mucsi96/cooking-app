@@ -26,6 +26,11 @@ trap 'rm -f "$KUBECONFIG"' EXIT
 
 HOSTNAME=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name hostname --query value -o tsv)
 API_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name api-client-id --query value -o tsv)
+AUTH_CONFIG=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name forward-auth-config --query value -o tsv)
+AUTH_RELEASE=$(jq -er '.release_name | select(type == "string" and length > 0)' <<<"$AUTH_CONFIG")
+AUTH_SESSION_URL=$(jq -er '.session_url | select(type == "string" and test("^https?://"))' <<<"$AUTH_CONFIG")
+AUTH_SIGN_IN_URL=$(jq -er '.sign_in_url | select(type == "string" and test("^https?://"))' <<<"$AUTH_CONFIG")
+API_ROUTE_FILTERS=$(jq -ce --arg middleware "${AUTH_RELEASE}-api" '.route_filters.api | select(type == "array" and any(.[]; .type == "ExtensionRef" and .extensionRef.group == "traefik.io" and .extensionRef.kind == "Middleware" and .extensionRef.name == $middleware))' <<<"$AUTH_CONFIG")
 
 echo "Updating Helm repositories..."
 # The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
@@ -33,6 +38,9 @@ helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 
 goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
+
+helm status "$AUTH_RELEASE" --namespace cooking >/dev/null
+helm show values mucsi96/go-app --version "$goAppChartVersion" | grep -q '^routeFilters:'
 
 echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 
@@ -46,13 +54,16 @@ helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --install \
     --version $goAppChartVersion \
     --set-string image="$SERVER_IMAGE" \
-    --set entryPoint=web \
     --set host=$HOSTNAME \
     --set basePath=/api \
+    --set-json routeFilters="$API_ROUTE_FILTERS" \
     --set clientId=$API_CLIENT_ID \
     --set serviceAccountName=cooking-api-workload-identity \
     --set env.AZURE_KEYVAULT_ENDPOINT=$AZURE_KEYVAULT_ENDPOINT \
     --set env.CLIENT_APP_NAME=$CLIENT_RELEASE_NAME \
+    --set-string env.BROWSER_ORIGIN="https://$HOSTNAME" \
+    --set-string env.AUTH_SESSION_URL="$AUTH_SESSION_URL" \
+    --set-string env.AUTH_SIGN_IN_URL="$AUTH_SIGN_IN_URL" \
     --set env.STORAGE_DIRECTORY=/app/storage \
     --set persistentVolumeClaims[0].name=cooking-pvc \
     --set persistentVolumeClaims[0].accessMode=ReadWriteOnce \
@@ -70,10 +81,10 @@ echo "Deploying client: $CLIENT_IMAGE using client-app chart $clientAppChartVers
 
 helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --install \
+    --reset-values \
     --version $clientAppChartVersion \
     --set-string image="$CLIENT_IMAGE" \
     --set host=$HOSTNAME \
-    --set entryPoint=web \
     --set resources.requests.memory=8Mi \
     --set resources.requests.cpu=5m \
     --set resources.limits.memory=32Mi \

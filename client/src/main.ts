@@ -6,12 +6,9 @@ import { initFaro } from './app/utils/faro';
 
 loadEnvironmentConfig().then(environment => {
   initFaro(environment.clientLogUrl, environment.clientAppName);
-  const url = new URL(window.location.href);
   console.info(
     '[boot] Faro initialized, starting Angular bootstrap',
     JSON.stringify({
-      returnedFromAuthority:
-        url.searchParams.has('code') || url.searchParams.has('error'),
       displayMode:
         window.matchMedia?.('(display-mode: standalone)').matches
           ? 'standalone'
@@ -24,9 +21,15 @@ loadEnvironmentConfig().then(environment => {
 });
 
 async function loadEnvironmentConfig(): Promise<EnvironmentConfig> {
-  const response = await fetch('/api/environment');
+  const query = new URLSearchParams({ returnTo: window.location.pathname + window.location.search + window.location.hash });
+  const response = await fetch(`/api/environment?${query}`, { cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to load config: ${response.status}`);
   }
-  return await response.json();
+  const result: EnvironmentConfig | { redirectTo: string } = await response.json();
+  if ('redirectTo' in result) {
+    window.location.replace(result.redirectTo);
+    return new Promise<EnvironmentConfig>(() => {});
+  }
+  return result;
 }

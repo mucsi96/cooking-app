@@ -1,7 +1,5 @@
 import {
   ApplicationConfig,
-  inject,
-  provideAppInitializer,
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -17,11 +15,7 @@ import {
 import { provideAngularMaterialTheme } from '@mucsi96/angular-material-theme';
 import { routes } from './app.routes';
 import { errorInterceptor } from './utils/error.interceptor';
-import { authRetryInterceptor } from './utils/auth-retry.interceptor';
 import { timezoneInterceptor } from './utils/timezone.interceptor';
-import { AuthService } from './auth.service';
-import { tokenInterceptor } from './utils/token.interceptor';
-import { provideOidcAuth } from './auth.config';
 import {
   EnvironmentConfig,
   ENVIRONMENT_CONFIG,
@@ -39,16 +33,12 @@ export function getAppConfig(environment: EnvironmentConfig): ApplicationConfig 
       provideHttpClient(
         withInterceptors([
           errorInterceptor,
-          authRetryInterceptor,
-          tokenInterceptor,
           timezoneInterceptor,
         ])
       ),
       { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
       provideAngularMaterialTheme(),
       { provide: ENVIRONMENT_CONFIG, useValue: environment },
-      provideOidcAuth(environment),
-      provideAppInitializer(() => inject(AuthService).init()),
     ],
   };
 }
