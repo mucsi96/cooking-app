@@ -8,7 +8,7 @@ COPY . .
 RUN npm run build
 
 
-FROM docker.io/library/nginx:1.31.6
+FROM docker.io/library/nginx:1.31.7
 LABEL org.opencontainers.image.source="https://github.com/mucsi96/cooking-app"
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
