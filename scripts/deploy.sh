@@ -26,6 +26,10 @@ trap 'rm -f "$KUBECONFIG"' EXIT
 
 HOSTNAME=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name hostname --query value -o tsv)
 API_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name api-client-id --query value -o tsv)
+AUTH_CONFIG=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name forward-auth-config --query value -o tsv)
+AUTH_RELEASE=$(jq -er '.release_name | select(type == "string" and length > 0)' <<<"$AUTH_CONFIG")
+PROXY_AUTH=$(jq -ce '.auth | select(.proxyService | type == "string" and length > 0) | select(.proxyPort | type == "number") | select(.mode == "api-token")' <<<"$AUTH_CONFIG")
+CLIENT_RUNTIME_CONFIG=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name client-runtime-config --query value -o tsv | jq -ce 'select(.clientLogUrl | type == "string") | select(.clientAppName | type == "string")')
 
 echo "Updating Helm repositories..."
 # The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
@@ -33,6 +37,11 @@ helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 
 goAppChartVersion=$(helm search repo mucsi96/go-app --output json | jq -er '.[0].version')
 clientAppChartVersion=$(helm search repo mucsi96/client-app --output json | jq -r '.[0].version')
+
+helm status "$AUTH_RELEASE" --namespace cooking >/dev/null
+helm show values mucsi96/go-app --version "$goAppChartVersion" | grep -q '^auth:'
+helm show values mucsi96/client-app --version "$clientAppChartVersion" | grep -q '^auth:'
+helm show values mucsi96/client-app --version "$clientAppChartVersion" | grep -q '^runtimeConfig:'
 
 echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 
@@ -44,15 +53,16 @@ echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 # container limit also leaves room for ffmpeg image conversion subprocesses.
 helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --install \
+    --reset-values \
     --version $goAppChartVersion \
     --set-string image="$SERVER_IMAGE" \
-    --set entryPoint=web \
     --set host=$HOSTNAME \
     --set basePath=/api \
+    --set-json auth="$PROXY_AUTH" \
     --set clientId=$API_CLIENT_ID \
     --set serviceAccountName=cooking-api-workload-identity \
     --set env.AZURE_KEYVAULT_ENDPOINT=$AZURE_KEYVAULT_ENDPOINT \
-    --set env.CLIENT_APP_NAME=$CLIENT_RELEASE_NAME \
+    --set-string env.BROWSER_ORIGIN="https://$HOSTNAME" \
     --set env.STORAGE_DIRECTORY=/app/storage \
     --set persistentVolumeClaims[0].name=cooking-pvc \
     --set persistentVolumeClaims[0].accessMode=ReadWriteOnce \
@@ -70,10 +80,12 @@ echo "Deploying client: $CLIENT_IMAGE using client-app chart $clientAppChartVers
 
 helm upgrade $CLIENT_RELEASE_NAME mucsi96/client-app \
     --install \
+    --reset-values \
     --version $clientAppChartVersion \
     --set-string image="$CLIENT_IMAGE" \
     --set host=$HOSTNAME \
-    --set entryPoint=web \
+    --set-json auth="$PROXY_AUTH" \
+    --set-json runtimeConfig="$CLIENT_RUNTIME_CONFIG" \
     --set resources.requests.memory=8Mi \
     --set resources.requests.cpu=5m \
     --set resources.limits.memory=32Mi \

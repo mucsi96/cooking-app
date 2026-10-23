@@ -77,7 +77,7 @@ spec:
         failureThreshold: 5
 
     - name: mock-oauth2
-      image: ghcr.io/mucsi96/mock-oidc-provider:12
+      image: ghcr.io/mucsi96/mock-oidc-provider:14
       ports:
         - containerPort: 8060
           hostPort: 8060
@@ -113,6 +113,8 @@ spec:
       env:
         - name: SERVER_PORT
           value: "8064"
+        - name: BROWSER_ORIGIN
+          value: http://localhost:8160
         - name: MANAGEMENT_PORT
           value: "8162"
         - name: DB_URL
