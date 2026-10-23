@@ -8,9 +8,39 @@ const MOCK_SERVERS = [
   process.env.TEST_OPENAI_URL ?? 'http://localhost:3061',
 ];
 
-export const test = base.extend({
-  page: async ({ page }, use, testInfo: TestInfo) => {
+export const test = base.extend<{ apiHeaders: Record<string, string> }>({
+  apiHeaders: async ({ request }, use) => {
+    const issuer = process.env.TEST_OAUTH2_URL ?? 'http://localhost:8060';
+    const redirect = 'http://localhost/test';
+    const authorization = await request.get(`${issuer}/default/authorize`, {
+      params: { client_id: 'test-client', redirect_uri: redirect, response_type: 'code' },
+      maxRedirects: 0,
+    });
+    const code = new URL(authorization.headers()['location']).searchParams.get('code')!;
+    const tokens = await request.post(`${issuer}/default/token`, {
+      form: { grant_type: 'authorization_code', client_id: 'test-client', redirect_uri: redirect, code },
+    });
+    if (!tokens.ok()) throw new Error(`Mock token request failed: ${tokens.status()}`);
+    await use({ Authorization: `Bearer ${(await tokens.json()).access_token}` });
+  },
+  page: async ({ page, apiHeaders }, use, testInfo: TestInfo) => {
     await cleanupDb();
+
+    // The production client chart injects this before the application starts.
+    await page.route('**/*', async route => {
+      if (route.request().resourceType() !== 'document') return route.fallback();
+      const response = await route.fetch();
+      const body = (await response.text()).replace('"__APP_CONFIG_JSON__"', JSON.stringify({
+        clientLogUrl: new URL('/_telemetry/collect', route.request().url()).href,
+        clientAppName: 'cooking-client',
+      }));
+      await route.fulfill({ response, body });
+    });
+    await page.route('**/_telemetry/collect', route => route.fulfill({ status: 202, body: 'ok' }));
+
+    // Stand in for the gateway's verified identity; no proxy/session stack in app tests.
+    await page.route('**/api/**', route => route.continue({ headers: { ...route.request().headers(), ...apiHeaders } }));
+    await page.route('**/oauth2/userinfo', route => route.fulfill({ json: { email: 'owner@example.test', additionalClaims: { name: 'Owner' } } }));
 
     // Reset mock AI servers
     await Promise.all(

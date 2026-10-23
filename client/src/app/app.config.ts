@@ -1,7 +1,5 @@
 import {
   ApplicationConfig,
-  inject,
-  provideAppInitializer,
   provideZoneChangeDetection,
 } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
@@ -17,38 +15,23 @@ import {
 import { provideAngularMaterialTheme } from '@mucsi96/angular-material-theme';
 import { routes } from './app.routes';
 import { errorInterceptor } from './utils/error.interceptor';
-import { authRetryInterceptor } from './utils/auth-retry.interceptor';
 import { timezoneInterceptor } from './utils/timezone.interceptor';
-import { AuthService } from './auth.service';
-import { tokenInterceptor } from './utils/token.interceptor';
-import { provideOidcAuth } from './auth.config';
-import {
-  EnvironmentConfig,
-  ENVIRONMENT_CONFIG,
-} from './environment/environment.config';
 
 const globalRippleConfig: RippleGlobalOptions = {
   disabled: true,
 };
 
-export function getAppConfig(environment: EnvironmentConfig): ApplicationConfig {
-  return {
-    providers: [
-      provideZoneChangeDetection({ eventCoalescing: true }),
-      provideRouter(routes, withComponentInputBinding()),
-      provideHttpClient(
-        withInterceptors([
-          errorInterceptor,
-          authRetryInterceptor,
-          tokenInterceptor,
-          timezoneInterceptor,
-        ])
-      ),
-      { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
-      provideAngularMaterialTheme(),
-      { provide: ENVIRONMENT_CONFIG, useValue: environment },
-      provideOidcAuth(environment),
-      provideAppInitializer(() => inject(AuthService).init()),
-    ],
-  };
-}
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter(routes, withComponentInputBinding()),
+    provideHttpClient(
+      withInterceptors([
+        errorInterceptor,
+        timezoneInterceptor,
+      ])
+    ),
+    { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
+    provideAngularMaterialTheme(),
+  ],
+};

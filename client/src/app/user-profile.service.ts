@@ -1,47 +1,23 @@
-import { Injectable, inject, linkedSignal } from '@angular/core';
-import { AuthService } from './auth.service';
+import { httpResource } from '@angular/common/http';
+import { computed, Injectable } from '@angular/core';
 
-interface UserProfile {
-  name: string;
-  initials: string;
+interface UserInfo {
+  email: string;
+  preferredUsername?: string;
+  additionalClaims?: { name?: string };
 }
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class UserProfileService {
-  private readonly authService = inject(AuthService);
+  private readonly userInfo = httpResource<UserInfo>(() => '/oauth2/userinfo');
 
-  // Derive the profile from the auth user data, but keep the last known value
-  // while the user data is momentarily empty during a token renewal (which
-  // happens when the installed PWA resumes on mobile). A plain computed would
-  // blank out and make the avatar disappear; linkedSignal lets us fall back to
-  // the previous value instead.
-  profile = linkedSignal<unknown, UserProfile | undefined>({
-    source: this.authService.userData,
-    computation: (profile, previous) => {
-      const claims = profile as
-        | { name?: string; preferred_username?: string }
-        | null
-        | undefined;
-      const name = claims?.name ?? claims?.preferred_username;
-
-      if (!name) {
-        return previous?.value;
-      }
-
-      return {
-        name,
-        initials: this.getInitials(name),
-      };
-    },
+  readonly profile = computed(() => {
+    if (!this.userInfo.hasValue()) return undefined;
+    const user = this.userInfo.value();
+    const name = (user.additionalClaims?.name ?? user.preferredUsername ?? user.email).trim();
+    return name ? {
+      name,
+      initials: name.split(/\s+/).map(part => part[0]).join('').toUpperCase(),
+    } : undefined;
   });
-
-  private getInitials(name: string): string {
-    return name
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase();
-  }
 }
