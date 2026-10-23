@@ -36,11 +36,14 @@ test('imports a recipe from plain text over the authenticated API', async ({ pag
   await expect(page.getByRole('link', { name: 'Almás rétes' })).toBeVisible();
 });
 
-test('accepts a machine bearer token without a browser Origin', async ({ page, request, apiHeaders }) => {
+test('rejects the retired integration import route and requires Origin for UI imports', async ({ page, request, apiHeaders }) => {
   await page.goto('/');
   const response = await request.post('/api/integrations/recipes/import', {
+    headers: { ...apiHeaders, Origin: new URL(page.url()).origin }, data: { text: GERMAN_STRUDEL_TEXT },
+  });
+  expect(response.status()).toBe(404);
+  const missingOrigin = await request.post('/api/recipes/import', {
     headers: apiHeaders, data: { text: GERMAN_STRUDEL_TEXT },
   });
-  expect(response.ok()).toBeTruthy();
-  expect((await response.json()).title).toBe('Almás rétes');
+  expect(missingOrigin.status()).toBe(403);
 });

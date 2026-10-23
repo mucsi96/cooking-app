@@ -108,7 +108,6 @@ func Router(a API, authorize Authorizer, origin string) *gin.Engine {
 	})
 	r.GET("/api/recipes", authorize("readRecipes"), func(c *gin.Context) { v, e := a.Store.List(c.Request.Context()); respond(c, v, e) })
 	r.POST("/api/recipes/import", authorize("createRecipe"), a.importText)
-	r.POST("/api/integrations/recipes/import", authorize("createRecipe"), a.importText)
 	r.POST("/api/recipes/import/image", authorize("createRecipe"), a.importPhoto)
 	r.GET("/api/recipes/:id", authorize("readRecipes"), validID, func(c *gin.Context) { v, e := a.Store.Get(c.Request.Context(), c.Param("id")); respond(c, v, e) })
 	r.GET("/api/recipes/:id/images", authorize("readRecipes"), validID, func(c *gin.Context) { v, e := a.Store.Candidates(c.Request.Context(), c.Param("id")); respond(c, v, e) })

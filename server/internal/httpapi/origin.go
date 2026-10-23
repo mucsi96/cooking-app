@@ -9,10 +9,6 @@ import (
 
 func browserOrigin(origin string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.Method == http.MethodPost && c.Request.URL.Path == "/api/integrations/recipes/import" {
-			c.Next()
-			return
-		}
 		safe := c.Request.Method == http.MethodGet || c.Request.Method == http.MethodHead || c.Request.Method == http.MethodOptions
 		if safe && !strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
 			c.Next()

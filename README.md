@@ -59,7 +59,6 @@ The proxy renews sessions; a lost session re-enters login on the next page load.
 | GET | `/api/recipes` | `readRecipes` |
 | GET | `/api/recipes/{id}` | `readRecipes` |
 | POST | `/api/recipes/import` | `createRecipe` |
-| POST | `/api/integrations/recipes/import` | `createRecipe`, caller bearer token; no browser session |
 | POST | `/api/recipes/import/image` | `createRecipe` |
 | GET | `/api/recipes/{id}/images` | `readRecipes` |
 | POST | `/api/recipes/{id}/images` | `createRecipe` |
@@ -70,9 +69,8 @@ The proxy renews sessions; a lost session re-enters login on the next page load.
 | PUT | `/api/settings/models` | `createRecipe` |
 
 Text import accepts `{"text":"recipe text or https://example.com/recipe"}`.
-Email/background callers use `/api/integrations/recipes/import` with an explicit
-Cooking API bearer token; update existing callers when switching browser routes
-to ForwardAuth. Only this exact machine mutation is exempt from Origin checks.
+Imports use the normal browser-authenticated UI endpoints and require the
+configured browser Origin. There is no separate integration import endpoint.
 Photo import accepts
 multipart form field `image` (maximum 15 MiB). Photo bytes are checked and
 normalized to JPEG before being sent to the selected data model. Image selection accepts
