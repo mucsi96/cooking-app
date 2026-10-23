@@ -14,7 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/mucsi96/cooking-app/server/internal/config"
 	"github.com/mucsi96/cooking-app/server/internal/media"
 	"github.com/mucsi96/cooking-app/server/internal/models"
 	"github.com/mucsi96/cooking-app/server/internal/recipe"
@@ -76,7 +75,7 @@ func validID(c *gin.Context) {
 	c.Next()
 }
 
-func Router(a API, environment config.Environment, authorize Authorizer, origin, sessionURL, signInURL string) *gin.Engine {
+func Router(a API, authorize Authorizer, origin string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.SetTrustedProxies(nil)
@@ -89,7 +88,6 @@ func Router(a API, environment config.Environment, authorize Authorizer, origin,
 	})
 	r.NoRoute(func(c *gin.Context) { fail(c, 404, "Az oldal nem található.") })
 	r.Use(browserOrigin(origin))
-	r.GET("/api/environment", environmentBootstrap(environment, sessionURL, signInURL))
 	r.GET("/api/models", authorize("createRecipe"), func(c *gin.Context) { c.JSON(200, a.Models.Catalog) })
 	r.GET("/api/settings/models", authorize("createRecipe"), func(c *gin.Context) { v, e := a.Models.Get(c.Request.Context()); respond(c, v, e) })
 	r.PUT("/api/settings/models", authorize("createRecipe"), func(c *gin.Context) {

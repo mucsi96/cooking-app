@@ -6,9 +6,9 @@ servings, and users choose from asynchronously generated food photographs.
 
 ## Architecture
 
-The application follows [skeleton-app](https://github.com/mucsi96/skeleton-app)
-(reference reviewed at `b1ef96af3c6c406197aa2465946e429c3f750dd6`): an Angular
-SPA bootstrapped from `/api/environment`, Azure AD authentication, PostgreSQL,
+The application follows [skeleton-app](https://github.com/mucsi96/skeleton-app):
+an Angular SPA bootstrapped from inline `window.__APP_CONFIG__`,
+Azure AD authentication, PostgreSQL,
 mock AI services, Playwright tests, Podman development and versioned container
 releases deployed through Helm and Traefik.
 
@@ -47,17 +47,15 @@ Tests exercise the same authentication using a local OIDC provider.
 The browser carries an HttpOnly session cookie. Platform-owned oauth2-proxy
 forwards the Cooking API access token; the client has no OAuth library or token
 storage. Browser mutations require the exact configured `BROWSER_ORIGIN`.
-Static HTML/assets and SPA routes are public. Before Angular starts, the generic
-loader requests `/api/environment` with the current relative URL as `returnTo`.
-The environment handler checks the private proxy session and returns configuration
-or a `redirectTo` instruction. The loader follows it without OAuth/session logic.
+The client chart authenticates SPA document requests and injects public runtime
+configuration into `index.html`. Assets remain directly served by nginx; the
+chart owns nested document routing. nginx rewrites only `/` for direct probes.
 There is no auth service/interceptor, route guard or sign-in/out UI. An independent
 read-only `/oauth2/userinfo` resource supplies the profile/settings menu.
 The proxy renews sessions; a lost session re-enters login on the next page load.
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/api/environment` | Configuration or server-selected login redirect |
 | GET | `/api/recipes` | `readRecipes` |
 | GET | `/api/recipes/{id}` | `readRecipes` |
 | POST | `/api/recipes/import` | `createRecipe` |
@@ -207,8 +205,6 @@ read at startup. Explicit environment variables override Key Vault values.
 | `TENANT_ID` | `tenant-id` |
 | `API_CLIENT_ID` | `api-client-id`; expected access-token audience |
 | `BROWSER_ORIGIN` | Required exact HTTP(S) browser origin, without a trailing slash |
-| `AUTH_SESSION_URL` | Private proxy session-check URL from AKV deployment configuration |
-| `AUTH_SIGN_IN_URL` | Public proxy login-start URL from AKV deployment configuration |
 | `OIDC_ISSUER` | `https://login.microsoftonline.com/{TENANT_ID}/v2.0` |
 | `ANTHROPIC_API_KEY` | `claude-api-key` |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` (origin, without `/v1`) |
@@ -220,8 +216,6 @@ read at startup. Explicit environment variables override Key Vault values.
 | `STORAGE_DIRECTORY` | `./storage`; mount persistent storage in production |
 | `SERVER_PORT` | 8063 locally, 8080 in the image |
 | `MANAGEMENT_PORT` | 8162 locally, 8081 in the image; shared chart sets 8082 |
-| `CLIENT_LOG_URL` | `client-log-url`; optional when Key Vault is disabled |
-| `CLIENT_APP_NAME` | `cooking-client` |
 
 Azure credentials use `DefaultAzureCredential`, supporting local Azure CLI login
 and Kubernetes workload identity. Configuration failures abort startup.
@@ -236,14 +230,14 @@ Publish the shared ForwardAuth/app charts and provision the platform-owned
 `cooking-oauth2-proxy` release before deploying these builds. The deploy script
 checks that release and middleware support, sets the production browser origin,
 and reads `forward-auth-config` from the app Azure Key Vault. It contains the
-release name, API route filters and backend session-check/login URLs. Only the
-API receives auth filters; client upgrades reset old values to remove previous
-frontend filters. Header/cache controls use standard Gateway API filters;
-only external authentication needs a Traefik ExtensionRef. The platform temporarily retains
-SPA redirects during preprovisioning, then removes them after app cutover.
+release name and the shared `.auth` descriptor, passed to both application charts.
+The `client-runtime-config` secret supplies `clientAppName` and the same-origin
+`clientLogUrl` (`/_telemetry/collect`). Provision these secrets before rollout.
+Minimum chart versions are go-app 3.0.0 and client-app 24.0.0.
+The client chart owns its Middleware and document/config injection rules.
 The app tests use mock authentication: Playwright supplies profile data and
 injects a mock-issued bearer token into browser API requests. The mock provider's
-health endpoint stands in for a valid bootstrap session. Backend JWT validation
+issues signed access tokens. Backend JWT validation
 and Origin checks stay enabled. Test pods run the app, database, mock OIDC/AI
 services and routing, without oauth2-proxy or Redis. Playwright targets `http://localhost:8160`.
 

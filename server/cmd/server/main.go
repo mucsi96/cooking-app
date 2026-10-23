@@ -89,7 +89,7 @@ func run(ctx context.Context) error {
 	api := httpapi.API{Store: store, AI: client, Storage: storage, Models: settings}
 	server := &http.Server{
 		Addr:              ":" + c.Port,
-		Handler:           httpapi.Router(api, c.Environment, authorize, c.BrowserOrigin, c.AuthSessionURL, c.AuthSignInURL),
+		Handler:           httpapi.Router(api, authorize, c.BrowserOrigin),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      3 * time.Minute,

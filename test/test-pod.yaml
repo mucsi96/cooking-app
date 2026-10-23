@@ -115,10 +115,6 @@ spec:
           value: "8064"
         - name: BROWSER_ORIGIN
           value: http://localhost:8160
-        - name: AUTH_SESSION_URL
-          value: http://localhost:8060/health
-        - name: AUTH_SIGN_IN_URL
-          value: http://localhost:8160/test-login
         - name: MANAGEMENT_PORT
           value: "8162"
         - name: DB_URL

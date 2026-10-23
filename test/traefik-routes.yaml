@@ -10,6 +10,12 @@ http:
       priority: 1
       service: client
       entryPoints: [web]
+      middlewares: [spa-document]
+  middlewares:
+    spa-document:
+      replacePathRegex:
+        regex: "^(/[^.?]*)?$"
+        replacement: /index.html
   services:
     server:
       loadBalancer:

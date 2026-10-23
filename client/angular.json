@@ -52,6 +52,7 @@
               "outputHashing": "all"
             },
             "development": {
+              "scripts": ["src/runtime-config.dev.js"],
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true

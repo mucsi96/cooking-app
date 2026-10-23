@@ -1,16 +1,22 @@
 import { test, expect } from '../fixtures';
 import { getRecipes } from '../utils';
 
-test('follows a bootstrap redirect before starting Angular', async ({ page }) => {
-  await page.route('**/api/environment?*', route => {
-    const target = new URL(route.request().url()).searchParams.get('returnTo');
-    expect(target).toBe('/importalas?source=bookmark#draft');
-    return route.fulfill({ json: { redirectTo: '/test-login' } });
+test('boots a deep link from inline configuration without an environment request', async ({ page }) => {
+  const environmentRequests: string[] = [];
+  page.on('request', request => {
+    if (request.url().includes('/api/environment')) environmentRequests.push(request.url());
   });
-  await page.route('**/test-login', route => route.fulfill({ contentType: 'text/html', body: 'Mock sign-in' }));
   await page.goto('/importalas?source=bookmark#draft');
-  await expect(page).toHaveURL('/test-login');
-  await expect(page.getByText('Mock sign-in')).toBeVisible();
+  await expect(page).toHaveURL(/\/importalas\?source=bookmark#draft$/);
+  await expect(page.getByRole('textbox').first()).toBeVisible();
+  expect(environmentRequests).toEqual([]);
+});
+
+test('sends browser logs to the same-origin collector', async ({ page }) => {
+  await page.goto('/');
+  const payload = page.waitForRequest(request => request.url().endsWith('/_telemetry/collect') && (request.postData() ?? '').includes('cooking-faro-check'));
+  await page.evaluate(() => console.info('cooking-faro-check'));
+  expect((await payload).postDataJSON().meta.app.name).toBe('cooking-client');
 });
 
 test('API validates bearer tokens and rejects unsafe cross-origin requests', async ({ page, request, apiHeaders }) => {
