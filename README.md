@@ -58,6 +58,7 @@ The proxy renews sessions; a lost session re-enters login on the next page load.
 | --- | --- | --- |
 | GET | `/api/recipes` | `readRecipes` |
 | GET | `/api/recipes/{id}` | `readRecipes` |
+| PUT | `/api/recipes/{id}` | `createRecipe` |
 | POST | `/api/recipes/import` | `createRecipe` |
 | POST | `/api/recipes/import/image` | `createRecipe` |
 | GET | `/api/recipes/{id}/images` | `readRecipes` |
@@ -69,6 +70,11 @@ The proxy renews sessions; a lost session re-enters login on the next page load.
 | PUT | `/api/settings/models` | `createRecipe` |
 
 Text import accepts `{"text":"recipe text or https://example.com/recipe"}`.
+Recipe editing accepts the complete content (`title`, `description`, `category`,
+`servings`, ordered `ingredients` and `steps`) and returns HTTP 204. Updates are
+atomic and preserve the selected image and image jobs. The **Recept szerkesztése**
+dialog edits original quantities, independently of the displayed serving scale;
+ingredients and preparation steps can be added, changed or removed.
 Imports use the normal browser-authenticated UI endpoints and require the
 configured browser Origin. There is no separate integration import endpoint.
 Photo import accepts

@@ -1,6 +1,6 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { CandidateImage, Recipe, RecipeListItem } from './recipe.model';
+import { CandidateImage, Recipe, RecipeContent, RecipeListItem } from './recipe.model';
 import { fetchJson } from './utils/fetchJson';
 
 @Injectable({ providedIn: 'root' })
@@ -8,6 +8,10 @@ export class RecipeService {
   private readonly http = inject(HttpClient);
 
   readonly recipes = httpResource<readonly RecipeListItem[]>(() => '/api/recipes');
+
+  updateRecipe(id: string, content: RecipeContent): Promise<void> {
+    return fetchJson(this.http, `/api/recipes/${id}`, { method: 'PUT', body: content });
+  }
 
   importRecipe(text: string): Promise<Recipe> {
     return fetchJson(this.http, '/api/recipes/import', {

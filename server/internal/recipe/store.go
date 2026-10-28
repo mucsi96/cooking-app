@@ -96,6 +96,40 @@ func (s *Store) Create(ctx context.Context, content Content) (Recipe, error) {
 	return r.recipe(), storeError("create recipe", err)
 }
 
+// Update replaces ordered content atomically without touching images or queued jobs.
+func (s *Store) Update(ctx context.Context, id string, content Content) error {
+	return storeError("update recipe", s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&recipeRecord{}).Where("id = ?", id).Updates(map[string]any{
+			"title": content.Title, "description": content.Description,
+			"category": content.Category, "servings": content.Servings,
+		})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrNotFound
+		}
+		if err := tx.Where("recipe_id = ?", id).Delete(&ingredientRecord{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("recipe_id = ?", id).Delete(&stepRecord{}).Error; err != nil {
+			return err
+		}
+		ingredients := make([]ingredientRecord, len(content.Ingredients))
+		for i, ingredient := range content.Ingredients {
+			ingredients[i] = ingredientRecord{RecipeID: id, Position: i, Name: ingredient.Name, Amount: ingredient.Amount, Unit: ingredient.Unit}
+		}
+		if err := tx.CreateInBatches(&ingredients, 100).Error; err != nil {
+			return err
+		}
+		steps := make([]stepRecord, len(content.Steps))
+		for i, step := range content.Steps {
+			steps[i] = stepRecord{RecipeID: id, Position: i, Step: step}
+		}
+		return tx.CreateInBatches(&steps, 100).Error
+	}))
+}
+
 // requireRecipe checks existence without loading ingredient and step associations.
 func requireRecipe(db *gorm.DB, id string) error {
 	var record recipeRecord

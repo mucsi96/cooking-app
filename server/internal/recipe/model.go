@@ -45,14 +45,14 @@ type Candidate struct {
 }
 
 func (r Content) Validate() error {
-	if strings.TrimSpace(r.Title) == "" || strings.TrimSpace(r.Description) == "" || r.Servings < 1 || len(r.Ingredients) == 0 || len(r.Steps) == 0 {
+	if strings.TrimSpace(r.Title) == "" || strings.TrimSpace(r.Description) == "" || r.Servings < 1 || r.Servings > 2147483647 || len(r.Ingredients) == 0 || len(r.Steps) == 0 {
 		return errors.New("incomplete extracted recipe")
 	}
 	if !slices.Contains([]string{"Reggeli", "Leves", "Főétel", "Köret", "Saláta", "Desszert", "Sütemény", "Ital", "Egyéb"}, r.Category) {
 		return errors.New("invalid recipe category")
 	}
 	for _, ingredient := range r.Ingredients {
-		if strings.TrimSpace(ingredient.Name) == "" || (ingredient.Amount != nil && (*ingredient.Amount < 0 || math.IsNaN(*ingredient.Amount) || math.IsInf(*ingredient.Amount, 0))) {
+		if strings.TrimSpace(ingredient.Name) == "" || (ingredient.Amount != nil && (*ingredient.Amount < 0 || *ingredient.Amount > 99999999.99 || math.IsNaN(*ingredient.Amount) || math.IsInf(*ingredient.Amount, 0))) {
 			return errors.New("invalid ingredient")
 		}
 	}

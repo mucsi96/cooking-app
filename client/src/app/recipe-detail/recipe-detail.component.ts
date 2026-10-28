@@ -13,6 +13,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { BarLoaderComponent } from '@mucsi96/angular-material-theme';
 import { Recipe } from '../recipe.model';
 import { RecipeImageDialogComponent } from './recipe-image-dialog.component';
+import { RecipeEditDialogComponent } from './recipe-edit-dialog.component';
 import { RecipeImageComponent } from '../recipe-image/recipe-image.component';
 import { RecipeService } from '../recipe.service';
 import { formatAmount, scaleAmount } from '../utils/formatAmount';
@@ -64,6 +65,18 @@ export class RecipeDetailComponent {
 
   printRecipe(): void {
     window.print();
+  }
+
+  editRecipe(): void {
+    this.dialog.open(RecipeEditDialogComponent, {
+      width: '720px', maxWidth: 'calc(100vw - 2rem)',
+      autoFocus: 'first-heading', data: this.recipe.value(),
+    }).afterClosed().subscribe(saved => {
+      if (saved) {
+        this.recipe.reload();
+        this.recipeService.recipes.reload();
+      }
+    });
   }
 
   openImageDialog(): void {
