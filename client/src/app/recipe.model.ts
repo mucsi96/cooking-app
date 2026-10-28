@@ -24,6 +24,8 @@ export interface CandidateImage {
   readonly error: string | null;
 }
 
+export type RecipeContent = Omit<Recipe, 'id' | 'imageId'>;
+
 export const CATEGORY_ORDER: readonly string[] = [
   'Reggeli', 'Leves', 'Főétel', 'Köret', 'Saláta',
   'Desszert', 'Sütemény', 'Ital', 'Egyéb',
