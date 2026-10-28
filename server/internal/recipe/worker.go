@@ -12,7 +12,7 @@ import (
 )
 
 type ImageGenerator interface {
-	GenerateImage(context.Context, string, string, *string) ([]byte, error)
+	GenerateImage(context.Context, string, string, *string, []byte) ([]byte, error)
 }
 type ImageStorage interface {
 	SaveImage(context.Context, string, []byte) error
@@ -55,8 +55,9 @@ func (w *Worker) process(ctx context.Context) (bool, error) {
 		var job struct {
 			ID, Title, Description string
 			ModelID                *string
+			SourcePhoto            []byte
 		}
-		err := tx.Table("cooking.image_generation_jobs AS j").Select("j.id, r.title, r.description, j.model_id").
+		err := tx.Table("cooking.image_generation_jobs AS j").Select("j.id, r.title, r.description, j.model_id, j.source_photo").
 			Joins("JOIN cooking.recipes AS r ON r.id = j.recipe_id").Where("j.status = ?", "PENDING").
 			Order("j.created_at, j.id").
 			Clauses(clause.Locking{Strength: "UPDATE", Table: clause.Table{Name: "j"}, Options: "SKIP LOCKED"}).
@@ -70,7 +71,7 @@ func (w *Worker) process(ctx context.Context) (bool, error) {
 		worked = true
 		jobCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 		defer cancel()
-		data, err := w.Generator.GenerateImage(jobCtx, job.Title, job.Description, job.ModelID)
+		data, err := w.Generator.GenerateImage(jobCtx, job.Title, job.Description, job.ModelID, job.SourcePhoto)
 		if err == nil {
 			err = w.Storage.SaveImage(jobCtx, job.ID, data)
 		}
@@ -87,7 +88,7 @@ func (w *Worker) process(ctx context.Context) (bool, error) {
 		}
 		// A map includes nil error values, unlike struct Updates which skips zeros.
 		return tx.Model(&imageJobRecord{}).Where("id = ?", job.ID).
-			Updates(map[string]any{"status": status, "error": message}).Error
+			Updates(map[string]any{"status": status, "error": message, "source_photo": nil}).Error
 	})
 	return worked, storeError("process image job", err)
 }

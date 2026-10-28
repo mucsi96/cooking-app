@@ -41,7 +41,10 @@ export class ChatHandler {
     }
 
     // Image scene description for thumbnail generation
-    if (system.includes('photorealistic food photograph')) {
+    if (system.includes('photorealistic food photograph') || system.includes('supplied food photo')) {
+      if (system.includes('supplied food photo') && !hasImageContent(userMessage)) {
+        throw new Error('Thumbnail source photo is missing');
+      }
       const dish = content.split('\n')[0];
       return createClaudeResponse(
         JSON.stringify({ description: `A photorealistic photo of freshly cooked ${dish} served in a rustic bowl on a wooden table, warm natural light, no text.` })

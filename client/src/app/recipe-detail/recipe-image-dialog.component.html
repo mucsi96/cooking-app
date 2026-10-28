@@ -1,9 +1,26 @@
 <h2 mat-dialog-title>Borítókép</h2>
-<button class="close-button" mat-icon-button mat-dialog-close aria-label="Bezárás">
+<button class="close-button" mat-icon-button mat-dialog-close aria-label="Bezárás" [disabled]="generating()">
   <mat-icon aria-hidden="true">close</mat-icon>
 </button>
 <mat-dialog-content>
-  <p>Válaszd ki a kedvenc AI-generált képedet, vagy kérj újakat.</p>
+  <p>Fotózd le az ételt, vagy válassz egy képet a Fotókból. A fényképed alapján AI-borítóképeket készítünk, amelyekből kiválaszthatod a kedvencedet.</p>
+  <div class="photo-actions">
+    <button mat-stroked-button type="button" (click)="cameraInput.click()" [disabled]="generating()">
+      <mat-icon>photo_camera</mat-icon>Fotó készítése
+    </button>
+    <button mat-stroked-button type="button" (click)="galleryInput.click()" [disabled]="generating()">
+      <mat-icon>photo_library</mat-icon>Kiválasztás a Fotókból
+    </button>
+  </div>
+  <input #cameraInput class="file-input" type="file" accept="image/*" capture="environment" aria-label="Étel lefotózása" [disabled]="generating()" (change)="selectPhoto($event)" />
+  <input #galleryInput class="file-input" type="file" accept="image/*" aria-label="Ételfotó kiválasztása" [disabled]="generating()" (change)="selectPhoto($event)" />
+  @if (selectedPhoto(); as photo) {
+  <div class="photo-preview">
+    <img [src]="previewUrl()" alt="Kiválasztott ételfotó" />
+    <p>{{ photo.name }}</p>
+    <button mat-button type="button" (click)="clearPhoto()" [disabled]="generating()">Fotó eltávolítása</button>
+  </div>
+  }
   @if (error(); as message) {
   <p role="alert">{{ message }}</p>
   }
@@ -38,19 +55,19 @@
     <p role="status">A kép elkészítése nem sikerült.</p>
     }
     } @empty {
-    <p>Még nincs választható kép. Kérj új képeket a recepthez.</p>
+    <p>Még nincs választható kép. Adj hozzá egy fotót az ételről.</p>
     }
   </div>
   }
   @if (generating()) {
-  <p role="status">Képek generálásának indítása…</p>
+  <p role="status">Fénykép feltöltése…</p>
   }
   @if (selecting()) {
   <p role="status">Borítókép mentése…</p>
   }
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  <button mat-flat-button [disabled]="generating()" (click)="generateImages()">
-    Új képek generálása
+  <button mat-flat-button bt-color="primary" [disabled]="!selectedPhoto() || generating()" (click)="uploadPhoto()">
+    Borítóképek készítése fotóból
   </button>
 </mat-dialog-actions>

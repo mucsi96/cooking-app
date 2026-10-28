@@ -25,8 +25,10 @@ export class RecipeService {
     return fetchJson(this.http, '/api/recipes/import/image', { method: 'POST', body });
   }
 
-  generateCandidateImages(recipeId: string): Promise<readonly CandidateImage[]> {
-    return fetchJson(this.http, `/api/recipes/${recipeId}/images`, { method: 'POST' });
+  uploadRecipePhoto(recipeId: string, photo: File): Promise<readonly CandidateImage[]> {
+    const body = new FormData();
+    body.append('image', photo);
+    return fetchJson(this.http, `/api/recipes/${recipeId}/images`, { method: 'POST', body });
   }
 
   selectImage(recipeId: string, imageId: string): Promise<void> {

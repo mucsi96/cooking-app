@@ -1,4 +1,6 @@
 import { test, expect } from '../fixtures';
+import { PHOTO as RECIPE_PHOTO, uploadThumbnail } from '../photo';
+import { query } from '../utils';
 
 const ENGLISH_GOULASH_TEXT = `Traditional Hungarian Goulash Soup
 
@@ -16,16 +18,6 @@ Instructions:
 Fry the diced onions, add the cubed beef and brown it. Sprinkle with paprika,
 pour water over it and simmer for an hour. Add the diced potatoes and carrots
 and cook until tender. Season with salt and serve hot.`;
-
-const RECIPE_PHOTO = Buffer.concat([
-  Buffer.from([
-    0x42, 0x4d, 70, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0,
-    40, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 1, 0, 24, 0,
-    0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-  ]),
-  Buffer.from([0, 0, 0, 255, 255, 255, 0, 0, 255, 255, 255, 0, 0, 0, 0, 0]),
-]);
 
 test('imports a pasted English recipe as a structured Hungarian recipe', async ({
   page,
@@ -61,6 +53,7 @@ test('recognizes and imports a recipe from an existing photo', async ({ page }) 
 
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
   await expect(page.getByText('marhalábszár')).toBeVisible();
+  expect((await query('SELECT id FROM cooking.image_generation_jobs')).rowCount).toBe(0);
 });
 
 test('shows an error for an inaccessible recipe URL and allows retrying with text', async ({ page }) => {
@@ -106,7 +99,9 @@ test('generates several thumbnail candidates and lets the user pick a favorite',
   const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
   await expect(dialog).toBeVisible();
 
-  // Several candidates are generated right away
+  // Import does not invent photos: candidates require an explicit food photo.
+  expect((await query('SELECT id FROM cooking.image_generation_jobs')).rowCount).toBe(0);
+  await uploadThumbnail(dialog);
   const candidates = dialog.getByRole('button', { name: /Kép kiválasztása/ });
   await expect(candidates).toHaveCount(3, { timeout: 30000 });
 
@@ -119,7 +114,7 @@ test('generates several thumbnail candidates and lets the user pick a favorite',
   // Clicking the existing thumbnail reopens the dialog with the saved selection.
   await page.getByRole('img', { name: 'Gulyásleves' }).click();
   await expect(candidates.first()).toHaveAttribute('aria-pressed', 'true');
-  await dialog.getByRole('button', { name: 'Új képek generálása' }).click();
+  await uploadThumbnail(dialog);
   await expect(candidates).toHaveCount(6, { timeout: 30000 });
   await candidates.last().click();
   await expect(candidates.last()).toHaveAttribute('aria-pressed', 'true');

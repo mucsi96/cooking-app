@@ -40,7 +40,7 @@ func (s *Store) Get(ctx context.Context, id string) (Recipe, error) {
 	return record.recipe(), storeError("get recipe", err)
 }
 
-func insertCandidates(tx *gorm.DB, recipeID string) ([]Candidate, error) {
+func insertCandidates(tx *gorm.DB, recipeID string, photo []byte) ([]Candidate, error) {
 	settings, err := models.Read(tx)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func insertCandidates(tx *gorm.DB, recipeID string) ([]Candidate, error) {
 	for _, image := range settings.Images {
 		for range image.Count {
 			id := image.ID
-			jobs = append(jobs, imageJobRecord{ID: uuid.NewString(), RecipeID: recipeID, Status: "PENDING", ModelID: &id})
+			jobs = append(jobs, imageJobRecord{ID: uuid.NewString(), RecipeID: recipeID, Status: "PENDING", ModelID: &id, SourcePhoto: photo})
 		}
 	}
 	result := make([]Candidate, len(jobs))
@@ -57,12 +57,12 @@ func insertCandidates(tx *gorm.DB, recipeID string) ([]Candidate, error) {
 		result[i] = Candidate{ID: jobs[i].ID, Status: jobs[i].Status}
 	}
 	if len(jobs) == 0 {
-		return result, nil
+		return nil, ErrImagesDisabled
 	}
 	return result, tx.Create(&jobs).Error
 }
 
-// Create uses an explicit transaction for the parent, ordered children and queue.
+// Create uses an explicit transaction for the parent and ordered children.
 // Associations are inserted explicitly, avoiding GORM's implicit association upserts.
 func (s *Store) Create(ctx context.Context, content Content) (Recipe, error) {
 	r := recipeRecord{ID: uuid.NewString(), Title: content.Title, Description: content.Description,
@@ -90,8 +90,7 @@ func (s *Store) Create(ctx context.Context, content Content) (Recipe, error) {
 				return err
 			}
 		}
-		_, err := insertCandidates(tx, r.ID)
-		return err
+		return nil
 	})
 	return r.recipe(), storeError("create recipe", err)
 }
@@ -147,7 +146,10 @@ func (s *Store) Candidates(ctx context.Context, id string) ([]Candidate, error) 
 	return result, storeError("list image candidates", err)
 }
 
-func (s *Store) Generate(ctx context.Context, id string) ([]Candidate, error) {
+func (s *Store) Generate(ctx context.Context, id string, photo []byte) ([]Candidate, error) {
+	if len(photo) == 0 {
+		return nil, errors.New("thumbnail generation requires a photo")
+	}
 	var result []Candidate
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		locked := tx.Clauses(clause.Locking{Strength: "KEY SHARE"})
@@ -155,7 +157,7 @@ func (s *Store) Generate(ctx context.Context, id string) ([]Candidate, error) {
 			return err
 		}
 		var err error
-		result, err = insertCandidates(tx, id)
+		result, err = insertCandidates(tx, id, photo)
 		return err
 	})
 	return result, storeError("queue image candidates", err)

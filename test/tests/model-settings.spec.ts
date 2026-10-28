@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { query } from '../utils';
+import { uploadThumbnail } from '../photo';
 
 for (const model of ['claude-sonnet-4-6', 'gpt-6-astra']) {
 test(`requires structured recipe JSON from ${model}`, async ({ page }) => {
@@ -16,6 +17,7 @@ test(`requires structured recipe JSON from ${model}`, async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
   await page.getByRole('button', { name: 'Borítókép módosítása' }).click();
   const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await uploadThumbnail(dialog);
   await expect(dialog.getByRole('button', { name: /Kép kiválasztása/ })).toHaveCount(3, { timeout: 30000 });
   const response = await fetch(`${process.env.TEST_ANTHROPIC_URL ?? 'http://localhost:3060'}/requests`);
   const requests = await response.json();
@@ -58,6 +60,7 @@ test('persists model settings and uses selected OpenAI data and image models', a
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
   await page.getByRole('button', { name: 'Borítókép módosítása' }).click();
   const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await uploadThumbnail(dialog);
   await expect(dialog.getByRole('button', { name: /Kép kiválasztása/ })).toHaveCount(2, { timeout: 30000 });
   const response = await fetch(`${process.env.TEST_OPENAI_URL ?? 'http://localhost:3061'}/requests`);
   const requests = await response.json();
@@ -77,18 +80,18 @@ test('persists model settings and uses selected OpenAI data and image models', a
       },
     } },
   });
-  expect(requests).toContainEqual({ operation: 'chat', model: 'gpt-6-sol', photo: false,
+  expect(requests).toContainEqual({ operation: 'chat', model: 'gpt-6-sol', photo: true,
     responseFormat: { type: 'json_schema', json_schema: { name: 'image_description', strict: true, schema: {
       type: 'object', additionalProperties: false, required: ['description'], properties: { description: { type: 'string' } },
     } } },
   });
-  expect(requests.filter((request: any) => request.operation === 'image')).toEqual([
-    { operation: 'image', model: 'gpt-image-2.5-flare', quality: 'xhigh' },
-    { operation: 'image', model: 'gpt-image-2.5-flare', quality: 'xhigh' },
+  expect(requests.filter((request: any) => request.operation === 'edit')).toEqual([
+    { operation: 'edit', model: 'gpt-image-2.5-flare', quality: 'xhigh', photo: true },
+    { operation: 'edit', model: 'gpt-image-2.5-flare', quality: 'xhigh', photo: true },
   ]);
 });
 
-test('validates image counts and supports disabling automatic images', async ({ page }) => {
+test('validates image counts and explains when photo thumbnails are disabled', async ({ page }) => {
   await page.goto('/beallitasok');
   const count = page.getByRole('spinbutton', { name: 'gpt-image-2.5-sunburst (medium) képek száma', exact: true });
   await count.fill('-1');
@@ -100,6 +103,11 @@ test('validates image counts and supports disabling automatic images', async ({ 
   await page.getByLabel('Recept szövege').fill('Goulash');
   await page.getByRole('button', { name: 'Importálás' }).click();
   await expect(page.getByRole('heading', { name: 'Gulyásleves' })).toBeVisible();
+  expect((await query('SELECT id FROM cooking.image_generation_jobs')).rowCount).toBe(0);
+  await page.getByRole('button', { name: 'Borítókép módosítása' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
+  await uploadThumbnail(dialog);
+  await expect(dialog.getByRole('alert')).toContainText('A képmodellek ki vannak kapcsolva');
   expect((await query('SELECT id FROM cooking.image_generation_jobs')).rowCount).toBe(0);
 });
 

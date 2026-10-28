@@ -20,6 +20,27 @@ h2 {
   margin-block: 1rem;
 }
 
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.file-input {
+  display: none;
+}
+
+.photo-preview {
+  margin-block: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.photo-preview img {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 8px;
+}
+
 .candidate {
   position: relative;
   aspect-ratio: 1;
