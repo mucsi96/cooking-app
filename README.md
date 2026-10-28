@@ -9,8 +9,8 @@ servings, and users choose from asynchronously generated food photographs.
 The application follows [skeleton-app](https://github.com/mucsi96/skeleton-app):
 an Angular SPA bootstrapped from inline `window.__APP_CONFIG__`,
 Azure AD authentication, PostgreSQL,
-mock AI services, Playwright tests, Podman development and versioned container
-releases deployed through Helm and Traefik.
+mock AI services, Playwright tests, Podman development, versioned API images and
+tested static client artifacts deployed through Helm, Traefik and Azure Storage.
 
 | Component | Technology |
 | --- | --- |
@@ -23,7 +23,7 @@ releases deployed through Helm and Traefik.
 | AI | Official Anthropic and OpenAI Go SDKs |
 | Images | Bounded PostgreSQL-backed worker pool, ffmpeg, persistent WebP files |
 | Tests | Playwright desktop/mobile E2E against the full application stack |
-| Deployment | Multi-stage Go/Alpine and Angular/nginx images, Helm, Traefik Gateway API |
+| Deployment | Go/Alpine API image, Azure static client, Helm, Traefik Gateway API |
 
 The backend is organized by responsibility:
 
@@ -48,8 +48,9 @@ The browser carries an HttpOnly session cookie. Platform-owned oauth2-proxy
 forwards the Cooking API access token; the client has no OAuth library or token
 storage. Browser mutations require the exact configured `BROWSER_ORIGIN`.
 The client chart authenticates SPA document requests and injects public runtime
-configuration into `index.html`. Assets remain directly served by nginx; the
-chart owns nested document routing. nginx rewrites only `/` for direct probes.
+configuration into `index.html`. Public build assets load directly from Azure
+Blob with app-origin CORS; the chart owns nested document routing. nginx is only
+the local/E2E static origin. Fonts and Material Icons are bundled locally.
 There is no auth service/interceptor, route guard or sign-in/out UI. An independent
 read-only `/oauth2/userinfo` resource supplies the profile/settings menu.
 The proxy renews sessions; a lost session re-enters login on the next page load.
@@ -158,7 +159,7 @@ npm test
 ```
 
 Open `http://localhost:8160`. `scripts/pod_down.sh` removes the test pod.
-Set `SKIP_BUILD=1` to reuse already built images.
+Set `SKIP_BUILD=1` to reuse already built API/mock images and `client/dist`.
 
 ### Local API and frontend
 
@@ -193,7 +194,10 @@ npm test
 Following skeleton-app, Playwright E2E tests are the sole automated test suite.
 They exercise the Angular client and Go API against PostgreSQL, a mock OIDC
 provider and mock AI services in the test pod. CI builds the container images
-and runs this suite before publishing. For an alternate test stack, Playwright
+and the static client artifact, and runs this suite before publishing. The
+direct-asset browser check (`python3 scripts/check_static_assets.py client/dist`)
+also exercises separate document/asset origins, CORS, credential isolation,
+lazy routes, local fonts, and manifest navigation. For an alternate test stack, Playwright
 accepts `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL` and `TEST_OPENAI_URL`.
 
 ## Runtime configuration
@@ -237,7 +241,7 @@ and reads `forward-auth-config` from the app Azure Key Vault. It contains the
 release name and the shared `.auth` descriptor, passed to both application charts.
 The `client-runtime-config` secret supplies `clientAppName` and the same-origin
 `clientLogUrl` (`/_telemetry/collect`). Provision these secrets before rollout.
-Minimum chart versions are go-app 3.0.0 and client-app 24.0.0.
+The deploy script pins published go-app 7.0.0 and static-client-app 4.0.0.
 The client chart owns its Middleware and document/config injection rules.
 The app tests use mock authentication: Playwright supplies profile data and
 injects a mock-issued bearer token into browser API requests. The mock provider's
@@ -259,16 +263,44 @@ release name, workload identity service account and `cooking-pvc` volume.
 The GitHub pipeline runs Playwright E2E tests, publishes numbered GHCR images and
 creates component releases when source changes, tagging the built commit using
 `target_commitish`. `scripts/deploy.sh` uses
-the shared `mucsi96/go-app` and `mucsi96/client-app` charts. The container's
+the shared `mucsi96/go-app` and `mucsi96/static-client-app` charts. The container's
 `GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
 
 The Go chart lives in
 [`k8s-helm-charts/charts/go_app`](https://github.com/mucsi96/k8s-helm-charts/tree/main/charts/go_app)
 and is based on its Spring chart, retaining the same environment, config-file,
-PVC, identity and resource values. The initial published release is `go-app`
-1.0.0. `scripts/deploy.sh` resolves its latest published version through the
-shared Helm repository, just as it did for `spring-app`, and passes that version
-explicitly to `helm upgrade`.
+PVC, identity and resource values. Chart versions are explicit published pins,
+matching the shared app-common 5.0.0 contract used by Skeleton and Observatory.
+
+### Static client hosting
+
+Terraform's `setup_cooking_app` requires `client_storage_account_name` and
+publishes `client-storage-config` (`account_name`, `hostname`, `assets_base_url`).
+Provision this module change and the app's external-origin/TraefikService
+permissions before merging the application migration. Existing API identities,
+database schema and `cooking-pvc` remain in place. Recipe photographs still use
+the protected `/api/images/...` endpoints; public Blob storage holds build assets only.
+
+CI builds Angular with Node/npm and tests that same `client-static` artifact.
+`scripts/prepare-client.mjs` rewrites HTML links to anonymous Blob asset URLs
+without changing bundle bytes or the `/` document base. Manifest navigation stays
+on the app hostname. Official `azure/login` and `azure/cli` actions use the
+existing federated identity, scoped separately to `$web` and `assets`, to upload
+assets first and index last. Failed asset uploads leave the previous index intact;
+old bundles are retained. The client release attaches `client-static.tar.gz`.
+
+`cooking-client` retains its Helm release and document route, but creates no
+client Deployment. The gateway authenticates documents, strips credentials before
+the verified HTTPS origin request, and injects public runtime config with no-store
+headers. Blob CORS permits the app origin; APIs and Faro remain same-origin.
+The storage website and assets contain public build content, not protected data.
+
+This is the same hosting/configuration contract as Skeleton and Observatory.
+All use host-only `__Host-session` cookies and the same `.auth` descriptor for
+client/API charts. Backend mutation protection remains stack-specific: Cooking
+uses strict Origin checks, Skeleton uses Spring CSRF/Angular XSRF, and Observatory
+has a read-only JWT-protected API. The chart fixes `no-referrer` and `nosniff`
+document headers; Observatory additionally supplies its strict CSP.
 
 ### Default ports
 

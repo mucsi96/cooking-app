@@ -18,7 +18,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 - Use immutable values and functional transformations where appropriate.
 - All user-facing text is Hungarian; the UI uses the Material dark theme.
 - Keep the architecture aligned with [skeleton-app](https://github.com/mucsi96/skeleton-app):
-  Angular SPA, `/api/environment` bootstrap, Azure AD, PostgreSQL, mocked AI,
+  Angular SPA, inline `window.__APP_CONFIG__`, gateway Entra sessions, PostgreSQL, mocked AI,
   Playwright, Podman and versioned Helm deployments.
 
 ## Go
@@ -68,13 +68,13 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   `background`, `color`, and `:hover` separately. Retain the intended button variant.
 - The `bt-color` API does not cover text, outlined, icon or menu buttons. Use their
   documented Material APIs instead. Check the installed theme README when changing styles.
-- Keep skeleton-app's generic config-or-redirect bootstrap and read-only userinfo
+- Keep skeleton-app's validated inline-config bootstrap and read-only userinfo
   profile resource. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
 - Revoke object URLs on cleanup and cancel reads when the selected resource changes.
 
 ## Architecture
 
-- `client/`: public Angular/Material UI SPA; production sessions belong to the platform proxy.
+- `client/`: Angular/Material SPA with authenticated gateway documents and direct public Blob assets.
 - `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
 - `server/internal/config/`: environment variables and Azure Key Vault.
 - `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
@@ -92,7 +92,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 - Recipes are grouped by Hungarian category. Details rescale ingredient amounts
   when servings change and support printing.
 - Text, public HTTP(S) URLs and recipe photos can be imported. The selected data model extracts
-  structured Hungarian recipes. The text endpoint also serves the email pipeline.
+  structured Hungarian recipes. Imports use browser-authenticated UI endpoints.
 - URL imports preserve JSON-LD, limit bytes/time/redirects, and validate the actual
   dialed IP address to prevent private network access and DNS rebinding.
 - Photo uploads are limited to 15 MiB and normalized before extraction.
@@ -103,8 +103,9 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 
 Protected routes require `api-access` scope plus `readRecipes` or `createRecipe`.
 Authentication stays enabled during tests, using a mock OIDC provider.
-`GET /api/environment` checks the private proxy session and returns configuration
-or a login redirect. See README for the complete route table.
+There is no `/api/environment` endpoint. The gateway authenticates documents
+before injecting public configuration; API calls stay same-origin. Keep strict
+mutation Origin checks active for proxy-injected bearer requests.
 
 ## Configuration and deployment
 
@@ -116,18 +117,24 @@ or a login redirect. See README for the complete route table.
 - Images live under `STORAGE_DIRECTORY/images/{uuid}.webp` on a persistent volume.
 - API releases use the shared `mucsi96/go-app` chart (based on `spring-app`),
   preserving `cooking-pvc` and the workload identity service account. Client
-  releases use the shared `mucsi96/client-app` chart. Keep `scripts/deploy.sh`
-  aligned with the original shared-chart workflow and values.
+  releases use `mucsi96/static-client-app` 4.0.0 for documents only. Keep
+  `scripts/deploy.sh` aligned with Skeleton's auth/runtime/storage contract.
 - Release tags must point at the image's commit: `target_commitish: ${{ github.sha }}`.
   Publish component releases and images only when
   `get_next_version.outputs.hasNextVersion == 'true'`; skip unchanged components.
-- Publish server/client images to GHCR with `GITHUB_TOKEN`, job-scoped `packages: write`,
+- Publish server images to GHCR with `GITHUB_TOKEN`, job-scoped `packages: write`,
   and `get_next_version.outputs.version` tags. Serialize publication and rollout.
   The action always returns `version` and `tag`, including the current reachable
   release when unchanged. Forward that version output to deployment without a
-  consumer-side tag lookup; require numbered GHCR tags or digests. Production
-  Dockerfile source labels trigger both first GHCR publications as packaging changes.
-  Both packages must be public for anonymous Kubernetes pulls.
+  consumer-side tag lookup; require numbered GHCR tags or digests.
+  The server package must be public for anonymous Kubernetes pulls.
+- Build the client directly with Node/npm. Attach the tested static archive to
+  client releases; upload assets before index via official Azure actions and
+  Entra authentication. Retain old bundles. There is no client image/Deployment.
+  Local/E2E tests mount `client/dist` into stock nginx. Bundle fonts locally.
+- Terraform publishes `client-storage-config` alongside `forward-auth-config`
+  and `client-runtime-config`. Storage is public build content; recipe images
+  remain protected API resources on `cooking-pvc`, not public Blob assets.
 
 ## Commands and tests
 

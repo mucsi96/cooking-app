@@ -1,5 +1,12 @@
 @use '@mucsi96/angular-material-theme/styles' as bt;
 
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  font-feature-settings: 'liga';
+}
+
 html,
 body {
   height: 100%;

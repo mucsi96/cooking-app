@@ -11,7 +11,7 @@ else
   echo "Building container images..."
   podman build -t localhost/cooking-app-server:test "$PROJECT_DIR/server" &
   SERVER_PID=$!
-  podman build -t localhost/cooking-app-client:test "$PROJECT_DIR/client" &
+  (cd "$PROJECT_DIR/client" && npm ci && npm run build) &
   CLIENT_PID=$!
   podman build -t localhost/cooking-app-mock-anthropic:test "$PROJECT_DIR/mock_anthropic_server" &
   ANTHROPIC_PID=$!
@@ -21,6 +21,8 @@ else
     wait "$pid"
   done
 fi
+
+test -f "$PROJECT_DIR/client/dist/index.html"
 
 echo "Cleaning up existing pod..."
 podman kube down "$PROJECT_DIR/test/test-pod.yaml" 2>/dev/null || true

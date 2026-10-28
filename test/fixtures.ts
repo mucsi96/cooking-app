@@ -53,10 +53,6 @@ export const test = base.extend<{ apiHeaders: Record<string, string> }>({
       })
     );
 
-    // Keep tests hermetic: never wait on the external font CDN
-    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
-    await page.route('https://fonts.gstatic.com/**', (route) => route.abort());
-
     // Capture browser console logs
     const consoleLogs: string[] = [];
     page.on('console', (msg) => {
