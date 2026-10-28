@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { GULYAS, insertRecipe } from '../utils';
+import { uploadThumbnail } from '../photo';
 
 test.beforeEach(async ({ page }) => {
   const recipeId = await insertRecipe(GULYAS);
@@ -18,14 +19,14 @@ test('displays the recipe with ingredients and steps', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('opens image generation from the empty thumbnail and restores keyboard focus', async ({ page }) => {
+test('uploads a thumbnail photo from the empty cover and restores keyboard focus', async ({ page }) => {
   const thumbnail = page.getByRole('button', { name: 'Borítókép módosítása' });
   await expect(page.getByRole('button', { name: 'Új képek generálása' })).toBeHidden();
   await thumbnail.click();
   const dialog = page.getByRole('dialog', { name: 'Borítókép', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Még nincs választható kép.', { exact: false })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Új képek generálása' }).click();
+  await uploadThumbnail(dialog);
   const candidates = dialog.getByRole('button', { name: /Kép kiválasztása/ });
   await expect(candidates).toHaveCount(3, { timeout: 30000 });
   await candidates.first().click();

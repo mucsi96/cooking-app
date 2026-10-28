@@ -38,8 +38,8 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   where meaningful, and translate `gorm.ErrRecordNotFound` into domain errors.
 - Do not use `Save`, global updates, automatic association upserts or `AutoMigrate`.
   Goose SQL migrations are the only schema authority. Keep query parameters out of logs.
-- Keep transactions around related writes; recipe creation and image job creation
-  are atomic. Always close rows, response bodies, files and subprocess resources.
+- Keep transactions around related writes; recipe content creation and photo-based
+  image job batches are atomic. Always close rows, response bodies, files and subprocess resources.
 - Use `log/slog` structured logging. Do not log credentials or raw recipe photos.
 - Interfaces belong with their consumers and should describe only the operations
   they need. Use a fixed worker pool rather than unbounded goroutines.
@@ -96,8 +96,11 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 - URL imports preserve JSON-LD, limit bytes/time/redirects, and validate the actual
   dialed IP address to prevent private network access and DNS rebinding.
 - Photo uploads are limited to 15 MiB and normalized before extraction.
-- Configured per-model candidate images (three by default) are queued per import or generation request. Users can
-  choose only completed images belonging to the recipe.
+- Configured per-model candidate images (three by default) are queued per uploaded
+  food photo, using normalized JPEG input with the image edits API. Recipe imports
+  do not generate thumbnails. Keep source bytes durable while pending and clear them
+  on terminal status; legacy text-only jobs must still finish. Users can choose only
+  completed images belonging to the recipe.
 - Preserve API JSON field names and the existing `cooking` schema. Existing
   installations are adopted by Goose without dropping data or image files.
 

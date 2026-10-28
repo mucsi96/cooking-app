@@ -9,6 +9,7 @@ import (
 
 var ErrNotFound = errors.New("recipe not found")
 var ErrInvalidImage = errors.New("image is not a completed candidate of this recipe")
+var ErrImagesDisabled = errors.New("no image models enabled")
 
 type Ingredient struct {
 	Name   string   `json:"name"`

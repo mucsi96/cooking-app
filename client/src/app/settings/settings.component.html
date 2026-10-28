@@ -31,7 +31,7 @@
   <mat-card>
     <mat-card-header><mat-card-title><h2>Képmodellek</h2></mat-card-title></mat-card-header>
     <mat-card-content>
-      <p>Képek száma recepten és képgenerálásonként. A 0 kikapcsolja a modellt. Modellenként legfeljebb 10, összesen legfeljebb 30 kép kérhető.</p>
+      <p>Borítóképek száma feltöltött ételfotónként. A 0 kikapcsolja a modellt. Modellenként legfeljebb 10, összesen legfeljebb 30 kép kérhető.</p>
       @for (model of catalog.value()?.images; track model.id) {
         <div class="image-row">
           <span>{{ model.name }}</span>

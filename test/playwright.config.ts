@@ -43,7 +43,7 @@ export default defineConfig({
     },
     {
       name: 'iPhone XS',
-      testMatch: ['**/mobile.spec.ts', '**/recipe-editing.spec.ts'],
+      testMatch: ['**/mobile.spec.ts', '**/recipe-editing.spec.ts', '**/photo-thumbnails.spec.ts'],
       use: {
         browserName: 'chromium',
         viewport: { width: 375, height: 812 },

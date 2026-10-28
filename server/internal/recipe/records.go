@@ -38,12 +38,13 @@ type stepRecord struct {
 func (stepRecord) TableName() string { return "cooking.recipe_steps" }
 
 type imageJobRecord struct {
-	ID        string `gorm:"type:uuid;primaryKey"`
-	RecipeID  string `gorm:"type:uuid"`
-	Status    string
-	ModelID   *string
-	Error     *string
-	CreatedAt time.Time
+	ID          string `gorm:"type:uuid;primaryKey"`
+	RecipeID    string `gorm:"type:uuid"`
+	Status      string
+	ModelID     *string
+	SourcePhoto []byte `gorm:"type:bytea"`
+	Error       *string
+	CreatedAt   time.Time
 }
 
 func (imageJobRecord) TableName() string { return "cooking.image_generation_jobs" }

@@ -2,7 +2,7 @@
 
 Hungarian recipe collection with AI-powered import from text, public web pages,
 and photos. Recipes are grouped by category, ingredient quantities scale with
-servings, and users choose from asynchronously generated food photographs.
+servings, and users upload food photos to create AI-enhanced thumbnails.
 
 ## Architecture
 
@@ -81,22 +81,32 @@ Photo import accepts
 multipart form field `image` (maximum 15 MiB). Photo bytes are checked and
 normalized to JPEG before being sent to the selected data model. Image selection accepts
 `{"imageId":"uuid"}` and returns HTTP 204.
+Thumbnail uploads use `POST /api/recipes/{id}/images` with the same multipart
+`image` field and 15 MiB limit. A source photo is required; an empty generation
+request is rejected. The **Borítókép** dialog offers camera and photo-library
+selection, preview/removal, upload retry and selection of completed thumbnails.
 
 URL imports retain page text and JSON-LD recipe metadata. They allow public
 HTTP(S) addresses only, pin connections to validated IP addresses, validate
 redirects, and enforce a 15-second timeout and 2 MiB download limit.
 
-Each import creates the configured durable image jobs in the same transaction as the
-recipe. Three workers claim jobs using PostgreSQL `FOR UPDATE SKIP LOCKED`,
-generate a scene with the selected data model, render it with OpenAI and atomically write WebP
-thumbnails. Failures are visible as `FAILED`; interrupted jobs remain `PENDING`
-and resume after restart. Image generation does not hold up the import response.
+Recipe imports no longer generate unrelated food images, including when importing
+a photo of a written recipe. Upload a separate photo of the dish to create thumbnails.
+Each thumbnail upload atomically queues the configured image jobs with their
+normalized source JPEG. Three workers claim jobs using PostgreSQL
+`FOR UPDATE SKIP LOCKED`, describe the supplied photo with the selected data model,
+send both photo and editing instructions to OpenAI's image edits API, and atomically
+write WebP thumbnails. Failures are visible as `FAILED`; interrupted jobs remain
+`PENDING` with their input intact and resume after restart. Source bytes are cleared
+from each job on completion or failure. Uploads return after queuing, without waiting
+for AI processing. With all image models disabled, uploads return an actionable error.
+Existing images remain selectable, and pre-upgrade pending text-only jobs still finish.
 
 ### Model settings
 
 Open **Beállítások** from the user menu to select data models independently for
 recipe extraction (text, URL and photo) and image descriptions. Image settings
-specify counts per model/quality for each import or generation request; zero
+specify counts per model/quality for each uploaded food photo; zero
 disables that variant. Counts are limited to 10 per variant and 30 in total.
 Settings are shared across users, require `createRecipe`, and persist in PostgreSQL.
 Queued jobs retain their selected image model even when settings change.

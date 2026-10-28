@@ -3,6 +3,7 @@ import { ImageGenerationHandler } from './imageGeneration';
 
 const app = express();
 const imageHandler = new ImageGenerationHandler();
+let failEdits = false;
 
 app.use(express.json({ limit: '20mb' }));
 
@@ -39,9 +40,15 @@ app.use((req, res, next) => {
 
 // Add route to reset state for tests
 app.post('/reset', (req, res) => {
+  failEdits = false;
   imageHandler.reset();
   requests.length = 0;
   res.status(200).json({ status: 'ok', message: 'Image counter reset to 0' });
+});
+
+app.post('/image-edit-behavior', (req, res) => {
+  failEdits = req.body.fail === true;
+  res.json({ status: 'ok' });
 });
 
 // Add route for image generation mock
@@ -53,6 +60,27 @@ app.post('/v1/images/generations', (req, res) => {
   } catch (error) {
     console.error('Image generation error:', error);
     res.status(500).json({ error: { message: 'Image generation failed' } });
+  }
+});
+
+// Parse the SDK's actual multipart edit request, requiring a normalized JPEG.
+app.post('/v1/images/edits', express.raw({ type: 'multipart/form-data', limit: '20mb' }), async (req, res) => {
+  try {
+    const form = await new Response(req.body, { headers: { 'Content-Type': req.get('Content-Type')! } }).formData();
+    const photo = form.get('image');
+    if (!(photo instanceof File) || photo.type !== 'image/jpeg') throw new Error('Missing source JPEG');
+    const bytes = new Uint8Array(await photo.arrayBuffer());
+    if (bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) throw new Error('Invalid source JPEG');
+    const model = String(form.get('model'));
+    const quality = String(form.get('quality'));
+    requests.push({ operation: 'edit', model, quality, photo: true });
+    if (failEdits) {
+      res.status(400).json({ error: { message: 'Image editing failed' } });
+      return;
+    }
+    res.json(imageHandler.generateImages({ model, prompt: String(form.get('prompt')), n: Number(form.get('n') ?? 1) }));
+  } catch {
+    res.status(400).json({ error: { message: 'A valid multipart photo edit is required' } });
   }
 });
 

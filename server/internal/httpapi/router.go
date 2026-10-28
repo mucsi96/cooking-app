@@ -43,6 +43,8 @@ func respond(c *gin.Context, value any, err error) {
 		fail(c, 404, "A recept nem található.")
 	case errors.Is(err, recipe.ErrInvalidImage):
 		fail(c, 400, "A kép nem választható ehhez a recepthez.")
+	case errors.Is(err, recipe.ErrImagesDisabled):
+		fail(c, 400, "A képmodellek ki vannak kapcsolva. Engedélyezz legalább egy képet a Beállításokban.")
 	default:
 		slog.Error("API request failed", "method", c.Request.Method, "path", c.FullPath(), "error", err)
 		fail(c, 500, "A művelet nem sikerült. Próbáld újra.")
@@ -126,7 +128,14 @@ func Router(a API, authorize Authorizer, origin string) *gin.Engine {
 	})
 	r.GET("/api/recipes/:id", authorize("readRecipes"), validID, func(c *gin.Context) { v, e := a.Store.Get(c.Request.Context(), c.Param("id")); respond(c, v, e) })
 	r.GET("/api/recipes/:id/images", authorize("readRecipes"), validID, func(c *gin.Context) { v, e := a.Store.Candidates(c.Request.Context(), c.Param("id")); respond(c, v, e) })
-	r.POST("/api/recipes/:id/images", authorize("createRecipe"), validID, func(c *gin.Context) { v, e := a.Store.Generate(c.Request.Context(), c.Param("id")); respond(c, v, e) })
+	r.POST("/api/recipes/:id/images", authorize("createRecipe"), validID, func(c *gin.Context) {
+		photo, ok := readPhoto(c)
+		if !ok {
+			return
+		}
+		v, e := a.Store.Generate(c.Request.Context(), c.Param("id"), photo)
+		respond(c, v, e)
+	})
 	r.PUT("/api/recipes/:id/image", authorize("createRecipe"), validID, func(c *gin.Context) {
 		var body struct {
 			ImageID string `json:"imageId"`
@@ -188,6 +197,14 @@ func (a API) importText(c *gin.Context) {
 }
 
 func (a API) importPhoto(c *gin.Context) {
+	photo, ok := readPhoto(c)
+	if !ok {
+		return
+	}
+	a.extract(c, "Extract the single recipe visible in this photo. Ignore unrelated surrounding text.", photo)
+}
+
+func readPhoto(c *gin.Context) ([]byte, bool) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, media.MaxPhotoBytes+1024*1024)
 	if err := c.Request.ParseMultipartForm(1024 * 1024); err != nil {
 		var limit *http.MaxBytesError
@@ -196,34 +213,34 @@ func (a API) importPhoto(c *gin.Context) {
 		} else {
 			fail(c, 400, "Érvénytelen fényképfeltöltés.")
 		}
-		return
+		return nil, false
 	}
 	defer c.Request.MultipartForm.RemoveAll()
 	file, header, err := c.Request.FormFile("image")
 	if err != nil {
-		fail(c, 400, "Válassz egy fényképet a receptről.")
-		return
+		fail(c, 400, "Válassz egy fényképet.")
+		return nil, false
 	}
 	defer file.Close()
 	if header.Size > media.MaxPhotoBytes {
 		fail(c, 413, "A fénykép legfeljebb 15 MB lehet.")
-		return
+		return nil, false
 	}
 	data, err := io.ReadAll(io.LimitReader(file, media.MaxPhotoBytes+1))
 	if err != nil {
 		fail(c, 400, "A fénykép nem olvasható.")
-		return
+		return nil, false
 	}
 	if len(data) == 0 {
 		fail(c, 400, "A fénykép üres.")
-		return
+		return nil, false
 	}
 	photo, err := media.NormalizePhoto(c.Request.Context(), data)
 	if err != nil {
 		fail(c, 415, "A fénykép formátuma nem támogatott vagy sérült.")
-		return
+		return nil, false
 	}
-	a.extract(c, "Extract the single recipe visible in this photo. Ignore unrelated surrounding text.", photo)
+	return photo, true
 }
 
 func (a API) extract(c *gin.Context, text string, photo []byte) {
