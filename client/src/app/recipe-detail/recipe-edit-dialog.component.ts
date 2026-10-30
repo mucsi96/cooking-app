@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -10,14 +11,19 @@ import { RecipeService } from '../recipe.service';
 
 @Component({
   selector: 'app-recipe-edit-dialog',
-  imports: [FormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+  imports: [FormsModule, TextFieldModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule],
   templateUrl: './recipe-edit-dialog.component.html',
   styles: `
-    mat-form-field { width: 100%; }
-    fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-    .ingredient { border-bottom: 1px solid var(--mat-sys-outline-variant); margin-bottom: 1rem; padding-bottom: 1rem; }
-    .quantity { display: flex; gap: 1rem; }
+    mat-form-field { width: 100%; min-width: 0; }
+    fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 1rem; }
+    h3 { margin: 1rem 0 0; }
+    .ingredient, .step { display: grid; gap: 1rem; border: 1px solid var(--mat-sys-outline-variant); border-radius: 12px; padding: 1rem; min-width: 0; }
+    .quantity, .metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    fieldset button { justify-self: start; }
     mat-dialog-actions { gap: .5rem; }
+    @media (max-width: 599px) {
+      .metadata, .quantity { grid-template-columns: minmax(0, 1fr); }
+    }
   `,
 })
 export class RecipeEditDialogComponent {
