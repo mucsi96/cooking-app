@@ -120,7 +120,7 @@ mutation Origin checks active for proxy-injected bearer requests.
 - Images live under `STORAGE_DIRECTORY/images/{uuid}.webp` on a persistent volume.
 - API releases use the shared `mucsi96/go-app` chart (based on `spring-app`),
   preserving `cooking-pvc` and the workload identity service account. Client
-  releases use `mucsi96/static-client-app` 4.0.0 for documents only. Keep
+  releases use `mucsi96/static-client-app` 5.0.0 for documents only. Keep
   `scripts/deploy.sh` aligned with Skeleton's auth/storage contract.
 - Release tags must point at the image's commit: `target_commitish: ${{ github.sha }}`.
   Publish component releases and images only when

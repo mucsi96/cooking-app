@@ -34,8 +34,8 @@ echo "Updating Helm repositories..."
 # The shared charts do not bundle Prometheus exporter sidecars or ServiceMonitors.
 helm repo add mucsi96 https://mucsi96.github.io/k8s-helm-charts --force-update
 
-goAppChartVersion=7.0.0
-staticClientAppChartVersion=4.0.0
+goAppChartVersion=8.0.0
+staticClientAppChartVersion=5.0.0
 
 helm status "$AUTH_RELEASE" --namespace cooking >/dev/null
 helm show chart mucsi96/go-app --version "$goAppChartVersion" >/dev/null

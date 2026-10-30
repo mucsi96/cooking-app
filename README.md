@@ -252,7 +252,7 @@ release name and the shared `.auth` descriptor, passed to both application chart
 Faro's app name and `/_telemetry/collect` path are compiled into the bundle;
 the browser resolves the collector URL against the app origin, not Blob storage.
 There is no global config, bootstrap marker or runtime configuration fetch.
-The deploy script pins published go-app 7.0.0 and static-client-app 4.0.0.
+The deploy script pins published go-app 8.0.0 and static-client-app 5.0.0.
 The client chart owns document authentication and SPA routing. Deployment omits
 `runtimeConfig`; `--reset-values` removes its former response-body middleware.
 The app tests use mock authentication: Playwright supplies profile data and
@@ -281,8 +281,7 @@ the shared `mucsi96/go-app` and `mucsi96/static-client-app` charts. The containe
 The Go chart lives in
 [`k8s-helm-charts/charts/go_app`](https://github.com/mucsi96/k8s-helm-charts/tree/main/charts/go_app)
 and is based on its Spring chart, retaining the same environment, config-file,
-PVC, identity and resource values. Chart versions are explicit published pins,
-matching the shared app-common 5.0.0 contract used by Skeleton and Observatory.
+PVC, identity and resource values. Chart versions are explicit published pins.
 
 ### Static client hosting
 
