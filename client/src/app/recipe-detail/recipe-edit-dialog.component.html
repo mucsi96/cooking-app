@@ -4,11 +4,13 @@
     @if (error()) { <p role="alert">{{ error() }}</p> }
     <fieldset [disabled]="saving()">
       <mat-form-field><mat-label>Recept neve</mat-label><input matInput name="title" required [ngModel]="content().title" (ngModelChange)="update({ title: $event })" /></mat-form-field>
-      <mat-form-field><mat-label>Leírás</mat-label><textarea matInput name="description" required [ngModel]="content().description" (ngModelChange)="update({ description: $event })"></textarea></mat-form-field>
-      <mat-form-field><mat-label>Kategória</mat-label><mat-select name="category" required [disabled]="saving()" [ngModel]="content().category" (ngModelChange)="update({ category: $event })">
-        @for (category of categories; track category) { <mat-option [value]="category">{{ category }}</mat-option> }
-      </mat-select></mat-form-field>
-      <mat-form-field><mat-label>Alapadagok száma</mat-label><input matInput type="number" name="servings" required min="1" max="2147483647" step="1" [ngModel]="content().servings" (ngModelChange)="update({ servings: $event })" /></mat-form-field>
+      <mat-form-field><mat-label>Leírás</mat-label><textarea matInput cdkTextareaAutosize cdkAutosizeMinRows="3" name="description" required [ngModel]="content().description" (ngModelChange)="update({ description: $event })"></textarea></mat-form-field>
+      <div class="metadata">
+        <mat-form-field><mat-label>Kategória</mat-label><mat-select name="category" required [disabled]="saving()" [ngModel]="content().category" (ngModelChange)="update({ category: $event })">
+          @for (category of categories; track category) { <mat-option [value]="category">{{ category }}</mat-option> }
+        </mat-select></mat-form-field>
+        <mat-form-field><mat-label>Alapadagok száma</mat-label><input matInput type="number" name="servings" required min="1" max="2147483647" step="1" [ngModel]="content().servings" (ngModelChange)="update({ servings: $event })" /></mat-form-field>
+      </div>
       <h3>Hozzávalók</h3>
       @for (item of content().ingredients; track $index; let i = $index) {
         <div class="ingredient">
@@ -23,10 +25,12 @@
       <button mat-stroked-button type="button" (click)="addIngredient()">Hozzávaló hozzáadása</button>
       <h3>Elkészítés</h3>
       @for (item of content().steps; track $index; let i = $index) {
-        <mat-form-field><mat-label>Elkészítés {{ i + 1 }}. lépése</mat-label><textarea matInput [name]="'step' + i" required [ngModel]="item" (ngModelChange)="step(i, $event)"></textarea></mat-form-field>
-        <button mat-stroked-button type="button" [disabled]="content().steps.length <= 1" (click)="removeStep(i)">{{ i + 1 }}. lépés törlése</button>
+        <div class="step">
+          <mat-form-field><mat-label>Elkészítés {{ i + 1 }}. lépése</mat-label><textarea matInput cdkTextareaAutosize cdkAutosizeMinRows="3" [name]="'step' + i" required [ngModel]="item" (ngModelChange)="step(i, $event)"></textarea></mat-form-field>
+          <button mat-stroked-button type="button" [disabled]="content().steps.length <= 1" (click)="removeStep(i)">{{ i + 1 }}. lépés törlése</button>
+        </div>
       }
-      <p><button mat-stroked-button type="button" (click)="addStep()">Lépés hozzáadása</button></p>
+      <button mat-stroked-button type="button" (click)="addStep()">Lépés hozzáadása</button>
     </fieldset>
   </mat-dialog-content>
   <mat-dialog-actions align="end">

@@ -1,6 +1,25 @@
 import { test, expect } from '../fixtures';
 import { GULYAS, insertRecipe, query } from '../utils';
 
+test('long descriptions and steps expand without nested scrolling or horizontal overflow', async ({ page }) => {
+  const longText = 'A hozzávalókat alaposan keverd össze, majd lassú tűzön főzd puhára. '.repeat(20);
+  const id = await insertRecipe({ ...GULYAS, description: longText, steps: [longText] });
+  await page.goto(`/recept/${id}`);
+  const edit = page.getByRole('button', { name: 'Recept szerkesztése' });
+  await edit.click();
+  const dialog = page.getByRole('dialog', { name: 'Recept szerkesztése' });
+  for (const label of ['Leírás', 'Elkészítés 1. lépése']) {
+    const field = dialog.getByLabel(label, { exact: true });
+    await expect(field).toHaveValue(longText);
+    await expect.poll(() => field.evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(2);
+    await field.fill(longText.repeat(2));
+    await expect.poll(() => field.evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(2);
+  }
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await dialog.getByRole('button', { name: 'Mégse' }).click();
+  await expect(edit).toBeFocused();
+});
+
 test('edits original quantities, ingredients and preparation and persists after reload', async ({ page, apiHeaders }) => {
   const id = await insertRecipe(GULYAS);
   await page.goto(`/recept/${id}`);
