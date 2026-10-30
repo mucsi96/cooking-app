@@ -6,7 +6,6 @@ import { pathToFileURL } from 'node:url';
 export async function prepareClient(directory, destination, assetBaseUrl, appOrigin) {
   const root = resolve(directory);
   const index = await readFile(join(root, 'index.html'), 'utf8');
-  if (!index.includes('"__APP_CONFIG_JSON__"')) throw new Error('Missing runtime configuration marker');
   for (const entry of await readdir(root, { recursive: true })) {
     if ((await lstat(join(root, entry))).isSymbolicLink()) throw new Error(`Unexpected symlink: ${entry}`);
   }

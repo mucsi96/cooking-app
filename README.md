@@ -7,7 +7,7 @@ servings, and users upload food photos to create AI-enhanced thumbnails.
 ## Architecture
 
 The application follows [skeleton-app](https://github.com/mucsi96/skeleton-app):
-an Angular SPA bootstrapped from inline `window.__APP_CONFIG__`,
+an Angular SPA with build-time Faro configuration,
 Azure AD authentication, PostgreSQL,
 mock AI services, Playwright tests, Podman development, versioned API images and
 tested static client artifacts deployed through Helm, Traefik and Azure Storage.
@@ -249,10 +249,12 @@ Publish the shared ForwardAuth/app charts and provision the platform-owned
 checks that release and middleware support, sets the production browser origin,
 and reads `forward-auth-config` from the app Azure Key Vault. It contains the
 release name and the shared `.auth` descriptor, passed to both application charts.
-The `client-runtime-config` secret supplies `clientAppName` and the same-origin
-`clientLogUrl` (`/_telemetry/collect`). Provision these secrets before rollout.
+Faro's app name and `/_telemetry/collect` path are compiled into the bundle;
+the browser resolves the collector URL against the app origin, not Blob storage.
+There is no global config, bootstrap marker or runtime configuration fetch.
 The deploy script pins published go-app 7.0.0 and static-client-app 4.0.0.
-The client chart owns its Middleware and document/config injection rules.
+The client chart owns document authentication and SPA routing. Deployment omits
+`runtimeConfig`; `--reset-values` removes its former response-body middleware.
 The app tests use mock authentication: Playwright supplies profile data and
 injects a mock-issued bearer token into browser API requests. The mock provider's
 issues signed access tokens. Backend JWT validation
@@ -301,7 +303,7 @@ old bundles are retained. The client release attaches `client-static.tar.gz`.
 
 `cooking-client` retains its Helm release and document route, but creates no
 client Deployment. The gateway authenticates documents, strips credentials before
-the verified HTTPS origin request, and injects public runtime config with no-store
+the verified HTTPS origin request, and serves the document unchanged with no-store
 headers. Blob CORS permits the app origin; APIs and Faro remain same-origin.
 The storage website and assets contain public build content, not protected data.
 

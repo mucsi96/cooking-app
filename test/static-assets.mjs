@@ -15,7 +15,11 @@ try {
       assets.push(request.url());
     }
   });
+  await page.route('**/_telemetry/collect', route => route.fulfill({ status: 202, json: {} }));
+  const telemetry = page.waitForRequest(request => request.url() === `${appOrigin}/_telemetry/collect` && request.method() === 'POST');
   await page.goto(`${appOrigin}/?source=bookmark`);
+  assert.equal((await telemetry).postDataJSON().meta.app.name, 'cooking-client');
+  assert.equal(await page.evaluate(() => '__APP_CONFIG__' in window), false);
   await expect(page.getByRole('heading', { name: 'Még nincs egyetlen recept sem' })).toBeVisible();
   await page.evaluate(async () => {
     for (const font of ['400 16px Roboto', '400 24px "Material Icons"']) {

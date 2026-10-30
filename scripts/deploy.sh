@@ -27,7 +27,6 @@ API_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --na
 AUTH_CONFIG=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name forward-auth-config --query value -o tsv)
 AUTH_RELEASE=$(jq -er '.release_name | select(type == "string" and length > 0)' <<<"$AUTH_CONFIG")
 PROXY_AUTH=$(jq -ce '.auth | select(.proxyService | type == "string" and length > 0) | select(.proxyPort | type == "number") | select(.mode == "api-token")' <<<"$AUTH_CONFIG")
-CLIENT_RUNTIME_CONFIG=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name client-runtime-config --query value -o tsv | jq -ce 'select(.clientLogUrl | type == "string") | select(.clientAppName | type == "string")')
 CLIENT_STORAGE_CONFIG=$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name client-storage-config --query value -o tsv)
 CLIENT_ORIGIN=$(jq -er '.hostname | select(test("^[a-z0-9.-]+\\.web\\.core\\.windows\\.net$"))' <<<"$CLIENT_STORAGE_CONFIG")
 
@@ -84,5 +83,4 @@ helm upgrade $CLIENT_RELEASE_NAME mucsi96/static-client-app \
     --set-string staticOrigin="$CLIENT_ORIGIN" \
     --set host=$HOSTNAME \
     --set-json auth="$PROXY_AUTH" \
-    --set-json runtimeConfig="$CLIENT_RUNTIME_CONFIG" \
     --wait

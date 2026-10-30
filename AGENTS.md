@@ -18,7 +18,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 - Use immutable values and functional transformations where appropriate.
 - All user-facing text is Hungarian; the UI uses the Material dark theme.
 - Keep the architecture aligned with [skeleton-app](https://github.com/mucsi96/skeleton-app):
-  Angular SPA, inline `window.__APP_CONFIG__`, gateway Entra sessions, PostgreSQL, mocked AI,
+  Angular SPA, build-time Faro configuration, gateway Entra sessions, PostgreSQL, mocked AI,
   Playwright, Podman and versioned Helm deployments.
 
 ## Go
@@ -68,7 +68,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   `background`, `color`, and `:hover` separately. Retain the intended button variant.
 - The `bt-color` API does not cover text, outlined, icon or menu buttons. Use their
   documented Material APIs instead. Check the installed theme README when changing styles.
-- Keep skeleton-app's validated inline-config bootstrap and read-only userinfo
+- Keep skeleton-app's build-config bootstrap and read-only userinfo
   profile resource. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
 - Revoke object URLs on cleanup and cancel reads when the selected resource changes.
 
@@ -107,7 +107,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 Protected routes require `api-access` scope plus `readRecipes` or `createRecipe`.
 Authentication stays enabled during tests, using a mock OIDC provider.
 There is no `/api/environment` endpoint. The gateway authenticates documents
-before injecting public configuration; API calls stay same-origin. Keep strict
+without rewriting their bodies; API calls stay same-origin. Keep strict
 mutation Origin checks active for proxy-injected bearer requests.
 
 ## Configuration and deployment
@@ -121,7 +121,7 @@ mutation Origin checks active for proxy-injected bearer requests.
 - API releases use the shared `mucsi96/go-app` chart (based on `spring-app`),
   preserving `cooking-pvc` and the workload identity service account. Client
   releases use `mucsi96/static-client-app` 4.0.0 for documents only. Keep
-  `scripts/deploy.sh` aligned with Skeleton's auth/runtime/storage contract.
+  `scripts/deploy.sh` aligned with Skeleton's auth/storage contract.
 - Release tags must point at the image's commit: `target_commitish: ${{ github.sha }}`.
   Publish component releases and images only when
   `get_next_version.outputs.hasNextVersion == 'true'`; skip unchanged components.
@@ -135,8 +135,10 @@ mutation Origin checks active for proxy-injected bearer requests.
   client releases; upload assets before index via official Azure actions and
   Entra authentication. Retain old bundles. There is no client image/Deployment.
   Local/E2E tests mount `client/dist` into stock nginx. Bundle fonts locally.
-- Terraform publishes `client-storage-config` alongside `forward-auth-config`
-  and `client-runtime-config`. Storage is public build content; recipe images
+- Compile the public Faro app name and same-origin `/_telemetry/collect` path into
+  the bundle. Omit chart `runtimeConfig`; `--reset-values` removes its old middleware.
+- Terraform publishes `client-storage-config` alongside `forward-auth-config`.
+  Storage is public build content; recipe images
   remain protected API resources on `cooking-pvc`, not public Blob assets.
 
 ## Commands and tests
