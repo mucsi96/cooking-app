@@ -50,9 +50,7 @@ def main(directory):
                 body = b'{"email":"owner@example.test","additionalClaims":{"name":"Owner"}}'
                 content_type = 'application/json'
             elif path in ['/', '/index.html'] or 'text/html' in self.headers.get('Accept', ''):
-                body = (Path(prepared) / 'documents/index.html').read_text().replace(
-                    '"__APP_CONFIG_JSON__"', json.dumps({'clientLogUrl': '', 'clientAppName': 'cooking-client'})
-                ).encode()
+                body = (Path(prepared) / 'documents/index.html').read_bytes()
                 content_type = 'text/html'
             else:
                 self.send_error(404)
