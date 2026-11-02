@@ -296,9 +296,10 @@ CI builds Angular with Node/npm and tests that same `client-static` artifact.
 `scripts/prepare-client.mjs` rewrites HTML links to anonymous Blob asset URLs
 without changing bundle bytes or the `/` document base. Manifest navigation stays
 on the app hostname. Official `azure/login` and `azure/cli` actions use the
-existing federated identity, scoped separately to `$web` and `assets`, to upload
-assets first and index last. Failed asset uploads leave the previous index intact;
-old bundles are retained. The client release attaches `client-static.tar.gz`.
+existing federated identity, scoped separately to `$web` and `assets`, to
+empty `$web` and `assets`, then upload the latest assets first and index last.
+Downtime is intentional; old bundles are removed. Assets cache for one year and
+index uses `no-store`. The client release attaches `client-static.tar.gz`.
 
 `cooking-client` retains its Helm release and document route, but creates no
 client Deployment. The gateway authenticates documents, strips credentials before

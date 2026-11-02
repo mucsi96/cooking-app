@@ -133,7 +133,8 @@ mutation Origin checks active for proxy-injected bearer requests.
   The server package must be public for anonymous Kubernetes pulls.
 - Build the client directly with Node/npm. Attach the tested static archive to
   client releases; upload assets before index via official Azure actions and
-  Entra authentication. Retain old bundles. There is no client image/Deployment.
+  Entra authentication. Empty `$web` and `assets` before uploading; deployment
+  downtime is intentional. There is no client image/Deployment.
   Local/E2E tests mount `client/dist` into stock nginx. Bundle fonts locally.
 - Compile the public Faro app name and same-origin `/_telemetry/collect` path into
   the bundle. Omit chart `runtimeConfig`; `--reset-values` removes its old middleware.
