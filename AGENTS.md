@@ -16,10 +16,18 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 
 - Prefer failing fast to silent fallbacks.
 - Use immutable values and functional transformations where appropriate.
-- All user-facing text is Hungarian; the UI uses the Material dark theme.
+- All user-facing text is Hungarian; preserve the dark theme and accessible controls.
 - Keep the architecture aligned with [skeleton-app](https://github.com/mucsi96/skeleton-app):
-  Angular SPA, build-time Faro configuration, gateway Entra sessions, PostgreSQL, mocked AI,
+  React/Vite/TypeScript SPA, build-time Faro configuration, gateway Entra sessions, PostgreSQL, mocked AI,
   Playwright, Podman and versioned Helm deployments.
+- Frontend migration [#42](https://github.com/mucsi96/cooking-app/issues/42) is authorized.
+  Replace the existing Angular client with idiomatic React, preserving business features,
+  routes, API contracts, accessibility and user-visible behavior. Update dependencies,
+  build/deployment tooling and documentation, and remove obsolete Angular code and
+  migration-only scaffolding. The React conventions below describe the target stack.
+- Keep the existing Go backend compatible throughout the frontend migration. The
+  Rust/Loco backend migration is separate work tracked in
+  [#41](https://github.com/mucsi96/cooking-app/issues/41).
 
 ## Go
 
@@ -49,32 +57,29 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   work to the pending queue. Terminal errors become `FAILED`.
 - Use the official Anthropic, OpenAI, Azure Identity and Key Vault SDKs.
 
-## TypeScript / Angular
+## TypeScript / React
 
 - Use `const`, readonly models, object/array spreads and map/filter/reduce.
 - Prefer string literal unions over enums.
-- Use standalone components, signals, signal inputs and HTTP resources for reads.
-- Use Angular Material components and skeleton loaders for loading states.
-- Follow `@mucsi96/angular-material-theme`'s documented button-color API: use
-  `bt-color="primary|success|warn|error"` on `mat-flat-button`, `mat-raised-button`,
-  `mat-fab` (including extended FABs), and `mat-mini-fab`, including anchor buttons.
-  Use `[attr.bt-color]` for dynamic tones; no directive import is needed.
-- Solid buttons default to primary. Use `error` for destructive actions, `warn`
-  for caution, and `success` for positive outcomes. Material's legacy
-  `color="warn"` means error/red, not the theme's orange `bt-color="warn"`.
-- For an arbitrary solid-button color, set only `--bt-button-bg` without
-  `bt-color`. Let the theme derive label contrast and hover colors. Do not override
-  Material container/label/state-layer tokens, `--mat-sys-primary`, or button
-  `background`, `color`, and `:hover` separately. Retain the intended button variant.
-- The `bt-color` API does not cover text, outlined, icon or menu buttons. Use their
-  documented Material APIs instead. Check the installed theme README when changing styles.
-- Keep skeleton-app's build-config bootstrap and read-only userinfo
-  profile resource. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
+- Use strict TypeScript, function components and hooks with coherent component boundaries.
+  Follow native React conventions rather than recreating Angular abstractions.
+- Use TanStack Query for server state and Zod validation at API boundaries. Propagate
+  cancellation to fetch requests and invalidate affected queries after mutations.
+- Use `@mucsi96/react-ui` components and their documented APIs. Check the installed
+  package documentation when changing controls or styles. Preserve accessible names,
+  keyboard navigation, focus management and responsive layouts.
+- Colocate component styles in CSS Modules (`*.module.css`). Keep only theme tokens,
+  typography defaults and resets in the global stylesheet.
+- Provide skeleton loading states and actionable Hungarian error and retry states.
+- Keep skeleton-app's build-time configuration bootstrap and read-only userinfo
+  profile query. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
+- Keep API requests same-origin and preserve the backend's strict mutation Origin
+  checks; do not copy Skeleton-specific CSRF or business contracts into Cooking.
 - Revoke object URLs on cleanup and cancel reads when the selected resource changes.
 
 ## Architecture
 
-- `client/`: Angular/Material SPA with authenticated gateway documents and direct public Blob assets.
+- `client/`: React/Vite SPA with shared React UI, authenticated gateway documents and direct public Blob assets.
 - `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
 - `server/internal/config/`: environment variables and Azure Key Vault.
 - `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
@@ -155,6 +160,8 @@ go build ./...
 
 # From client/
 npm start
+npm run lint
+npm run typecheck
 npm run build
 
 # From the repository root
@@ -170,7 +177,11 @@ npx playwright test --ui
 
 - Use Playwright E2E tests as the sole automated test suite, following skeleton-app.
   Exercise the running application with PostgreSQL and mock OIDC/AI services.
-  Do not add Go unit/integration tests or a `go test` CI job.
+  Extend coverage for affected user journeys during the frontend migration. Do not
+  add React unit/component tests, Go or Rust unit/integration tests, or a `go test` CI job.
+- The migrated client must expose lint, type-check and production-build scripts and
+  run those checks in CI. Verify the static-hosting contract with
+  `python3 scripts/check_static_assets.py client/dist`.
 - Playwright tests use user-facing roles/labels/text, not implementation selectors.
 - Mock gateway identity/profile data in app fixtures; keep backend JWT/role/Origin
   checks enabled. Do not run oauth2-proxy/Redis or duplicate platform session-flow tests.
