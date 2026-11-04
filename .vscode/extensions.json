@@ -1,7 +1,7 @@
 {
     "recommendations": [
         "golang.go",
-        "angular.ng-template",
+        "dbaeumer.vscode-eslint",
         "editorconfig.editorconfig",
         "esbenp.prettier-vscode",
         "anweber.vscode-httpyac",

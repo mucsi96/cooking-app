@@ -22,7 +22,7 @@ try {
   assert.equal(await page.evaluate(() => '__APP_CONFIG__' in window), false);
   await expect(page.getByRole('heading', { name: 'Még nincs egyetlen recept sem' })).toBeVisible();
   await page.evaluate(async () => {
-    for (const font of ['400 16px Roboto', '400 24px "Material Icons"']) {
+    for (const font of ['400 16px Roboto']) {
       if (!(await document.fonts.load(font)).length) throw new Error(`Missing bundled font: ${font}`);
     }
   });

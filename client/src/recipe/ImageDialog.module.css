@@ -1,0 +1,4 @@
+.candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1rem; margin-block: 1.5rem; }
+.candidate { padding: 0; border: 3px solid transparent; border-radius: 12px; overflow: hidden; aspect-ratio: 1; cursor: pointer; }
+.candidate[aria-pressed="true"] { border-color: var(--bt-primary); }
+.pending { display: flex; align-items: center; min-height: 150px; }

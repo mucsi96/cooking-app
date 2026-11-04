@@ -1,0 +1,14 @@
+:root { font-family: Roboto, sans-serif; color: var(--bt-text-default); background: var(--bt-surface-0); }
+* { box-sizing: border-box; }
+body { margin: 0; -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { font: inherit; }
+a { color: var(--bt-link); }
+h1, h2, h3 { color: var(--bt-text-strong); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+@page { margin: 14mm; }
+@media print {
+  :root, body { background: #fff !important; color: #000 !important; }
+  h1, h2, h3 { color: #000; }
+}

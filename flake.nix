@@ -22,7 +22,7 @@
           pkgs.gopls
           pkgs.delve
           pkgs.ffmpeg
-          pkgs.nodejs_22        # matches the Node version used in CI
+          pkgs.nodejs_24        # React/Vite requires Node 24 or newer
           pkgs.jq
           pkgs.kubectl
           pkgs.kubernetes-helm
