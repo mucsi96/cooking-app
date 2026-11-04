@@ -1,4 +1,4 @@
-:root { font-family: Roboto, sans-serif; color: var(--bt-text-default); background: var(--bt-surface-0); }
+:root { font-family: var(--bt-font-body); color: var(--bt-text-default); background: var(--bt-surface-0); }
 * { box-sizing: border-box; }
 body { margin: 0; -webkit-tap-highlight-color: transparent; }
 button, input, textarea, select { font: inherit; }
