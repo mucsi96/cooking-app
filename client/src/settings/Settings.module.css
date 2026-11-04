@@ -1,0 +1,5 @@
+.page { max-width: 900px; margin: auto; padding-bottom: 2rem; }
+.card { display: grid; gap: 1rem; margin-block: 20px; }
+.imageRow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.imageRow > span { overflow-wrap: anywhere; }
+.imageRow > div { width: 110px; flex-shrink: 0; }

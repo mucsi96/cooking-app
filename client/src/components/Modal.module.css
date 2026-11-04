@@ -1,0 +1,6 @@
+.overlay { position: fixed; inset: 0; z-index: 100; background: #0009; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.modal { width: min(800px, 100%); max-height: calc(100dvh - 2rem); overflow-y: auto; border-radius: 16px; border: 1px solid var(--bt-outline); background: var(--bt-surface-1); box-shadow: var(--bt-shadow); }
+.dialog { padding: 1.5rem; position: relative; outline: none; }
+.title { margin: 0 3rem 1.5rem 0; outline: none; }
+.close { position: absolute; top: .75rem; right: .75rem; }
+@media (max-width: 599px) { .dialog { padding: 1rem; } }

@@ -7,15 +7,15 @@ servings, and users upload food photos to create AI-enhanced thumbnails.
 ## Architecture
 
 The application follows [skeleton-app](https://github.com/mucsi96/skeleton-app):
-an Angular SPA with build-time Faro configuration,
+a React SPA with build-time Faro configuration,
 Azure AD authentication, PostgreSQL,
 mock AI services, Playwright tests, Podman development, versioned API images and
 tested static client artifacts deployed through Helm, Traefik and Azure Storage.
 
 | Component | Technology |
 | --- | --- |
-| Client | Angular 22, standalone components, signals and HTTP resources |
-| UI | Angular Material and `@mucsi96/angular-material-theme`, Hungarian dark theme |
+| Client | React 19, Vite, strict TypeScript, TanStack Query and Zod |
+| UI | `@mucsi96/react-ui`, CSS Modules, accessible Hungarian dark theme |
 | API | Go 1.26, Gin, explicit dependency injection |
 | Database | PostgreSQL 17, GORM with the pgx-backed PostgreSQL driver, Goose SQL migrations |
 | Authentication | API JWT validation with `go-oidc`; stock oauth2-proxy ForwardAuth browser sessions |
@@ -47,10 +47,10 @@ Tests exercise the same authentication using a local OIDC provider.
 The browser carries an HttpOnly session cookie. Platform-owned oauth2-proxy
 forwards the Cooking API access token; the client has no OAuth library or token
 storage. Browser mutations require the exact configured `BROWSER_ORIGIN`.
-The client chart authenticates SPA document requests and injects public runtime
-configuration into `index.html`. Public build assets load directly from Azure
+The client chart authenticates SPA document requests without rewriting their bodies.
+Public configuration is compiled into the bundle. Build assets load directly from Azure
 Blob with app-origin CORS; the chart owns nested document routing. nginx is only
-the local/E2E static origin. Fonts and Material Icons are bundled locally.
+the local/E2E static origin. Roboto fonts are bundled locally.
 There is no auth service/interceptor, route guard or sign-in/out UI. An independent
 read-only `/oauth2/userinfo` resource supplies the profile/settings menu.
 The proxy renews sessions; a lost session re-enters login on the next page load.
@@ -187,6 +187,18 @@ In another terminal, run `npm start` from `client/`. The dev server on port 4260
 proxies `/api` to port 8063. VS Code includes a Go debugger configuration using
 `server/.env`. That file is ignored by Git.
 
+The client requires Node 24 or newer. Routes are lazy React Router pages; TanStack
+Query owns server state and cancels reads on navigation. Zod validates recipe,
+model-setting and profile responses at API boundaries. Mutations invalidate the
+affected queries. Dialog drafts stay local so failed saves can be retried without
+losing edits. Shared `@mucsi96/react-ui` controls provide accessible dark-theme
+interactions, with component styles colocated in CSS Modules.
+
+Vite builds relative asset imports into `client/dist`. The existing preparation
+script rewrites only HTML asset links for Blob hosting; API and telemetry calls
+remain on the application origin. The frontend migration does not change backend
+routes, database migrations, image storage or gateway authentication.
+
 ### Checks
 
 ```bash
@@ -195,6 +207,8 @@ go vet ./...
 go build ./...
 
 # From client/
+npm run lint
+npm run typecheck
 npm run build
 
 # From test/ with the test stack running
@@ -202,7 +216,7 @@ npm test
 ```
 
 Following skeleton-app, Playwright E2E tests are the sole automated test suite.
-They exercise the Angular client and Go API against PostgreSQL, a mock OIDC
+They exercise the React client and Go API against PostgreSQL, a mock OIDC
 provider and mock AI services in the test pod. CI builds the container images
 and the static client artifact, and runs this suite before publishing. The
 direct-asset browser check (`python3 scripts/check_static_assets.py client/dist`)
@@ -292,7 +306,7 @@ permissions before merging the application migration. Existing API identities,
 database schema and `cooking-pvc` remain in place. Recipe photographs still use
 the protected `/api/images/...` endpoints; public Blob storage holds build assets only.
 
-CI builds Angular with Node/npm and tests that same `client-static` artifact.
+CI lints, type-checks and builds React/Vite with Node/npm and tests that same `client-static` artifact.
 `scripts/prepare-client.mjs` rewrites HTML links to anonymous Blob asset URLs
 without changing bundle bytes or the `/` document base. Manifest navigation stays
 on the app hostname. Official `azure/login` and `azure/cli` actions use the
@@ -310,7 +324,7 @@ The storage website and assets contain public build content, not protected data.
 This is the same hosting/configuration contract as Skeleton and Observatory.
 All use host-only `__Host-session` cookies and the same `.auth` descriptor for
 client/API charts. Backend mutation protection remains stack-specific: Cooking
-uses strict Origin checks, Skeleton uses Spring CSRF/Angular XSRF, and Observatory
+uses strict Origin checks, Skeleton uses its own cookie/header CSRF contract, and Observatory
 has a read-only JWT-protected API. The chart fixes `no-referrer` and `nosniff`
 document headers; Observatory additionally supplies its strict CSP.
 
@@ -319,7 +333,7 @@ document headers; Observatory additionally supplies its strict CSP.
 | Port | Service |
 | --- | --- |
 | 3060 / 3061 | Mock Anthropic / OpenAI |
-| 4260 | Angular development server |
+| 4260 | Vite development server |
 | 5460 / 5461 | Development / test PostgreSQL |
 | 8060 | Mock OIDC provider |
 | 8063 / 8064 | Local / test API |
