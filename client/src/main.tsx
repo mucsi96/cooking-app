@@ -6,6 +6,7 @@ import { initializeFaro } from '@grafana/faro-web-sdk';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 import '@mucsi96/react-ui/styles.css';
+import '@mucsi96/react-ui/typography.css';
 import './styles.css';
 import { App } from './App';
 
