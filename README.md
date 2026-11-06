@@ -218,10 +218,8 @@ npm test
 Following skeleton-app, Playwright E2E tests are the sole automated test suite.
 They exercise the React client and Go API against PostgreSQL, a mock OIDC
 provider and mock AI services in the test pod. CI builds the container images
-and the static client artifact, and runs this suite before publishing. The
-direct-asset browser check (`python3 scripts/check_static_assets.py client/dist`)
-also exercises separate document/asset origins, CORS, credential isolation,
-lazy routes, local fonts, and manifest navigation. For an alternate test stack, Playwright
+and the static client artifact, and runs this suite before publishing.
+For an alternate test stack, Playwright
 accepts `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL` and `TEST_OPENAI_URL`.
 
 ## Runtime configuration

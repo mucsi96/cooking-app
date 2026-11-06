@@ -1,7 +1,6 @@
-:root { font-family: var(--bt-font-body); color: var(--bt-text-default); background: var(--bt-surface-0); }
+:root { color: var(--bt-text-default); background: var(--bt-surface-0); }
 * { box-sizing: border-box; }
 body { margin: 0; -webkit-tap-highlight-color: transparent; }
-button, input, textarea, select { font: inherit; }
 a { color: var(--bt-link); }
 h1, h2, h3 { color: var(--bt-text-strong); overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {

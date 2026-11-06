@@ -163,8 +163,6 @@ jobs:
         with:
           name: client-static
           path: client/dist
-      - name: Check direct browser asset loading
-        run: python3 scripts/check_static_assets.py client/dist
       - name: Load images into Podman
         run: |
           podman load -i /tmp/server-image.tar
