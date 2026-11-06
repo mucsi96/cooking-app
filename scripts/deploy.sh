@@ -47,8 +47,8 @@ echo "Deploying server: $SERVER_IMAGE using go-app chart $goAppChartVersion"
 # clears the chart default): on a single-user node they only throttle
 # startup and the ffmpeg runs; memory limits are the ones that matter.
 #
-# The Go executable uses GOMEMLIMIT=256MiB (see server/Dockerfile). The 768Mi
-# container limit also leaves room for ffmpeg image conversion subprocesses.
+# The 768Mi container limit leaves room for the native Rust server and ffmpeg
+# image conversion subprocesses. The existing chart's runtime contract is retained.
 helm upgrade $SERVER_RELEASE_NAME mucsi96/go-app \
     --install \
     --reset-values \

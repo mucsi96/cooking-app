@@ -4,6 +4,7 @@ import { ImageGenerationHandler } from './imageGeneration';
 const app = express();
 const imageHandler = new ImageGenerationHandler();
 let failEdits = false;
+let editDelayMs = 0;
 
 app.use(express.json({ limit: '20mb' }));
 
@@ -41,6 +42,7 @@ app.use((req, res, next) => {
 // Add route to reset state for tests
 app.post('/reset', (req, res) => {
   failEdits = false;
+  editDelayMs = 0;
   imageHandler.reset();
   requests.length = 0;
   res.status(200).json({ status: 'ok', message: 'Image counter reset to 0' });
@@ -48,6 +50,7 @@ app.post('/reset', (req, res) => {
 
 app.post('/image-edit-behavior', (req, res) => {
   failEdits = req.body.fail === true;
+  editDelayMs = Math.min(30_000, Math.max(0, Number(req.body.delayMs) || 0));
   res.json({ status: 'ok' });
 });
 
@@ -74,6 +77,7 @@ app.post('/v1/images/edits', express.raw({ type: 'multipart/form-data', limit: '
     const model = String(form.get('model'));
     const quality = String(form.get('quality'));
     requests.push({ operation: 'edit', model, quality, photo: true });
+    if (editDelayMs) await new Promise(resolve => setTimeout(resolve, editDelayMs));
     if (failEdits) {
       res.status(400).json({ error: { message: 'Image editing failed' } });
       return;

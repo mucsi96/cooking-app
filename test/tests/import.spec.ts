@@ -118,6 +118,9 @@ test('generates several thumbnail candidates and lets the user pick a favorite',
   await expect(candidates).toHaveCount(6, { timeout: 30000 });
   await candidates.last().click();
   await expect(candidates.last()).toHaveAttribute('aria-pressed', 'true');
+  // Selection is displayed before query refreshes finish. Dismissal stays
+  // disabled until the save mutation has settled.
+  await expect(dialog.getByRole('button', { name: 'Bezárás' })).toBeEnabled();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('button', { name: 'Borítókép módosítása' })).toBeFocused();

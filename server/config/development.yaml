@@ -1,0 +1,31 @@
+logger:
+  enable: true
+  level: info
+  format: json
+server:
+  binding: 0.0.0.0
+  port: 8063
+  host: http://localhost
+  middlewares:
+    etag:
+      enable: false
+    fallback:
+      enable: false
+    secure_headers:
+      enable: true
+      preset: empty
+      overrides:
+        Cache-Control: no-store
+        X-Content-Type-Options: nosniff
+workers:
+  mode: BackgroundAsync
+database:
+  uri: postgres://localhost/cooking
+  enable_logging: false
+  min_connections: 1
+  max_connections: 10
+  connect_timeout: 30000
+  idle_timeout: 300000
+  auto_migrate: true
+  dangerously_truncate: false
+  dangerously_recreate: false

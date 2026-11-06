@@ -25,37 +25,31 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   routes, API contracts, accessibility and user-visible behavior. Update dependencies,
   build/deployment tooling and documentation, and remove obsolete Angular code and
   migration-only scaffolding. The React conventions below describe the target stack.
-- Keep the existing Go backend compatible throughout the frontend migration. The
-  Rust/Loco backend migration is separate work tracked in
-  [#41](https://github.com/mucsi96/cooking-app/issues/41).
+- The Rust/Loco backend migration is tracked in
+  [#41](https://github.com/mucsi96/cooking-app/issues/41). Preserve the existing
+  frontend, API, database and deployment contracts.
 
-## Go
+## Rust / Loco
 
-- Use idiomatic Go: small packages, explicit constructors/dependencies, ordinary
-  structs, context propagation, wrapped errors and `gofmt`.
-- Do not recreate an annotation-based dependency-injection or ORM framework.
-- HTTP routing and middleware use Gin. Persistence uses GORM's PostgreSQL driver
-  over pgx and a shared `database/sql` connection pool.
-- Keep persistence records separate from API models, with explicit schema-qualified
-  table names and primary keys. Do not embed `gorm.Model` into legacy tables.
-- Start queries with `WithContext(ctx)`; never cache mutable query chains. Use
-  parameter placeholders for values and fixed, application-owned ordering/column names.
-- Use transaction callbacks and only the provided transaction handle inside them.
-  Preload ordered associations for details; project only needed columns for lists.
-- Use targeted updates and explicit maps for zero/null values, check `RowsAffected`
-  where meaningful, and translate `gorm.ErrRecordNotFound` into domain errors.
-- Do not use `Save`, global updates, automatic association upserts or `AutoMigrate`.
-  Goose SQL migrations are the only schema authority. Keep query parameters out of logs.
-- Keep transactions around related writes; recipe content creation and photo-based
-  image job batches are atomic. Always close rows, response bodies, files and subprocess resources.
-- Use `log/slog` structured logging. Do not log credentials or raw recipe photos.
-- Interfaces belong with their consumers and should describe only the operations
-  they need. Use a fixed worker pool rather than unbounded goroutines.
-- New schema changes are versioned SQL files under
-  `server/internal/database/migrations/`; never change an applied migration.
-- The image queue uses `FOR UPDATE SKIP LOCKED`. Rollback returns interrupted
-  work to the pending queue. Terminal errors become `FAILED`.
-- Use the official Anthropic, OpenAI, Azure Identity and Key Vault SDKs.
+- Follow native Loco lifecycle/CLI hooks, thin Axum controllers, typed Serde
+  payloads/settings, domain services/errors and structured tracing.
+- Use SeaORM's bounded PostgreSQL pool, schema-qualified persistence models and
+  parameterized SQL for domain projections and row-locking queue operations.
+- Keep persistence records separate from API models. Preserve UUID/composite keys,
+  explicit null updates and position ordering; check affected rows on conditional writes.
+- SeaORM migrations under `server/migration/` are the schema authority. Never
+  change an applied migration, reset existing data or enable destructive startup flags.
+  Historical Goose SQL under `server/internal/database/migrations/` is archival only.
+- Recipe writes and photo job batches are atomic. Use only the transaction handle
+  inside transactions. Keep ordinary transactions short.
+- The image queue uses three workers and `FOR UPDATE SKIP LOCKED`. Dropped
+  transactions return interrupted jobs to pending; terminal errors become `FAILED`.
+- Bound external calls, uploads and subprocesses. Kill subprocesses on cancellation,
+  clean up temporary files and write images atomically. Never log keys or photo bytes.
+- Use typed reqwest clients for Anthropic/OpenAI, following skeleton-app (neither
+  provider has an official Rust SDK). Use official Azure Identity/Key Vault SDKs.
+- Run rustfmt, Clippy with warnings denied, and a locked build. Playwright is the
+  sole behavioral test suite; do not add Rust unit/integration tests.
 
 ## TypeScript / React
 
@@ -80,13 +74,12 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 ## Architecture
 
 - `client/`: React/Vite SPA with shared React UI, authenticated gateway documents and direct public Blob assets.
-- `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
-- `server/internal/config/`: environment variables and Azure Key Vault.
-- `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
-- `server/internal/recipe/`: domain model, SQL store, public page imports, workers.
-- `server/internal/ai/`: recipe extraction and image generation SDK adapters.
-- `server/internal/media/`: ffmpeg photo normalization and atomic WebP storage.
-- `server/internal/httpapi/`: Gin routes, role/scope checks and health probes.
+- `server/src/app.rs`: Loco lifecycle, listeners, workers and graceful shutdown.
+- `server/src/settings.rs`: runtime environment and Azure Key Vault configuration.
+- `server/src/controllers.rs`, `middleware/`: typed API routes and JWT/Origin checks.
+- `server/src/models/`: SeaORM persistence and domain models.
+- `server/src/services/`: AI clients, public page imports, ffmpeg storage and workers.
+- `server/migration/`: non-destructive SeaORM migrations.
 - Production API chart: `charts/go_app/` in the shared `k8s-helm-charts` project.
 - `mock_anthropic_server/`, `mock_openai_server/`: Express mocks of provider APIs.
 - `test/`: Playwright desktop/mobile E2E tests.
@@ -107,7 +100,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   on terminal status; legacy text-only jobs must still finish. Users can choose only
   completed images belonging to the recipe.
 - Preserve API JSON field names and the existing `cooking` schema. Existing
-  installations are adopted by Goose without dropping data or image files.
+  installations are adopted by SeaORM without dropping data or image files.
 
 Protected routes require `api-access` scope plus `readRecipes` or `createRecipe`.
 Authentication stays enabled during tests, using a mock OIDC provider.
@@ -117,7 +110,7 @@ mutation Origin checks active for proxy-injected bearer requests.
 
 ## Configuration and deployment
 
-- One Go binary/image works in every environment; configuration is runtime-only.
+- One Rust binary/image works in every environment; configuration is runtime-only.
 - Explicit environment variables override Key Vault values. See `server/.env.example`
   and README for variables and secrets. Never commit `server/.env`.
 - Health endpoints are `/health/liveness` and
@@ -149,14 +142,15 @@ mutation Origin checks active for proxy-injected bearer requests.
 
 ## Commands and tests
 
-Enter `nix develop` for Go, Node, ffmpeg, Helm and Azure CLI. Install Podman through
+Enter `nix develop` for Rust, Node, ffmpeg, Helm and Azure CLI. Install Podman through
 the operating system. `scripts/install_dependencies.sh` installs project dependencies.
 
 ```bash
 # From server/
-go run ./cmd/server
-go vet ./...
-go build ./...
+cargo run -- start
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo build --locked
 
 # From client/
 npm start
