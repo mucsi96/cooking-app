@@ -1,7 +1,7 @@
 import { Component, lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { BarLoader, Button, Menu, MenuItem, MenuPopover, MenuTrigger } from '@mucsi96/react-ui';
+import { AppHeader, AppHeaderActions, AppMain, BarLoader, Button, Menu, MenuItem, MenuPopover, MenuTrigger } from '@mucsi96/react-ui';
 import { profileQuery } from './api';
 import styles from './App.module.css';
 
@@ -29,13 +29,13 @@ export function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
   return <>
-    <header className={styles.header}>
-      <nav aria-label="Fő navigáció">
+    <AppHeader className={styles.header}>
         <span className={styles.brand}>Szakácskönyv</span>
-        <div className={styles.navigation}>
+      <AppHeaderActions>
+        <nav aria-label="Fő navigáció" className={styles.navigation}>
           <NavLink to="/" end>Receptek</NavLink>
           <NavLink to="/importalas">Importálás</NavLink>
-        </div>
+        </nav>
         <MenuTrigger>
           <Button variant="avatar" aria-label="Felhasználói menü">{name.split(/\s+/).map(part => part[0]).join('').toUpperCase()}</Button>
           <MenuPopover>
@@ -47,9 +47,9 @@ export function App() {
             </Menu>
           </MenuPopover>
         </MenuTrigger>
-      </nav>
-    </header>
-    <main className={styles.main}>
+      </AppHeaderActions>
+    </AppHeader>
+    <AppMain className={styles.main}>
       <PageBoundary key={location.pathname}>
         <Suspense fallback={<BarLoader label="Oldal betöltése" />}>
           <Routes>
@@ -61,6 +61,6 @@ export function App() {
           </Routes>
         </Suspense>
       </PageBoundary>
-    </main>
+    </AppMain>
   </>;
 }
