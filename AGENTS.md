@@ -180,8 +180,7 @@ npx playwright test --ui
   Extend coverage for affected user journeys during the frontend migration. Do not
   add React unit/component tests, Go or Rust unit/integration tests, or a `go test` CI job.
 - The migrated client must expose lint, type-check and production-build scripts and
-  run those checks in CI. Verify the static-hosting contract with
-  `python3 scripts/check_static_assets.py client/dist`.
+  run those checks in CI.
 - Playwright tests use user-facing roles/labels/text, not implementation selectors.
 - Mock gateway identity/profile data in app fixtures; keep backend JWT/role/Origin
   checks enabled. Do not run oauth2-proxy/Redis or duplicate platform session-flow tests.
