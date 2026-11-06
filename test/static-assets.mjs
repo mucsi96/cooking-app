@@ -21,11 +21,7 @@ try {
   assert.equal((await telemetry).postDataJSON().meta.app.name, 'cooking-client');
   assert.equal(await page.evaluate(() => '__APP_CONFIG__' in window), false);
   await expect(page.getByRole('heading', { name: 'Még nincs egyetlen recept sem' })).toBeVisible();
-  await page.evaluate(async () => {
-    for (const font of ['400 16px Roboto']) {
-      if (!(await document.fonts.load(font)).length) throw new Error(`Missing bundled font: ${font}`);
-    }
-  });
+  await expect(page.locator('body')).toHaveCSS('font-family', 'system-ui');
   // Exercise a real lazy route and refreshing it with a query string.
   await page.getByRole('link', { name: 'Recept importálása', exact: true }).click();
   await expect(page).toHaveURL(`${appOrigin}/importalas`);
@@ -47,7 +43,8 @@ try {
     image.src = url;
   }), new URL(manifest.icons[0].src, `${assetBaseUrl}manifest.webmanifest`).href);
 
-  for (const suffix of ['.js', '.css', '.woff2', '.png']) {
+  assert(!assets.some(url => /\.(woff2?|ttf|otf)(\?|$)/.test(url)), 'System fonts must not download font files');
+  for (const suffix of ['.js', '.css', '.png']) {
     assert(assets.some(url => url.endsWith(suffix)), `No ${suffix} request was exercised`);
   }
   assert(assets.some(url => /\/chunk-.*\.js$/.test(url)), 'Lazy modules must load from storage');

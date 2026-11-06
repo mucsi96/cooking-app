@@ -37,7 +37,7 @@ export function App() {
           <NavLink to="/importalas">Importálás</NavLink>
         </div>
         <MenuTrigger>
-          <Button variant="avatar" aria-label="Felhasználói menü">{name.split(/\s+/).map(part => part[0]).join('').toUpperCase()}</Button>
+          <Button variant="avatar" className={styles.avatar} aria-label="Felhasználói menü">{name.split(/\s+/).map(part => part[0]).join('').toUpperCase()}</Button>
           <MenuPopover>
             {name && <p className={styles.profile}>{name}</p>}
             {profile.isError && <p role="alert">A profil betöltése nem sikerült.</p>}

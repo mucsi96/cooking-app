@@ -1,4 +1,4 @@
-:root { font-family: var(--bt-font-body); color: var(--bt-text-default); background: var(--bt-surface-0); }
+:root { --bt-font: system-ui; --bt-font-body: system-ui; --bt-font-mono: system-ui; font-family: system-ui; color: var(--bt-text-default); background: var(--bt-surface-0); }
 * { box-sizing: border-box; }
 body { margin: 0; -webkit-tap-highlight-color: transparent; }
 button, input, textarea, select { font: inherit; }
