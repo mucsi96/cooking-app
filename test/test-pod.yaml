@@ -145,9 +145,8 @@ spec:
         - name: storage
           mountPath: /storage
       livenessProbe:
-        httpGet:
-          path: /health/readiness
-          port: 8162
+        exec:
+          command: ["/app/cooking", "--healthcheck"]
         # Readiness waits for the database, SQL migrations and OIDC discovery.
         initialDelaySeconds: 2
         periodSeconds: 2

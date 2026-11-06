@@ -18,9 +18,10 @@
         # rootless Podman relies on setuid newuidmap/newgidmap helpers and
         # /etc/subuid mappings that a Nix store binary cannot provide.
         packages = [
-          pkgs.go
-          pkgs.gopls
-          pkgs.delve
+          pkgs.rustup
+          pkgs.pkg-config
+          pkgs.cmake
+          pkgs.gcc
           pkgs.ffmpeg
           pkgs.nodejs_24        # React/Vite requires Node 24 or newer
           pkgs.jq
@@ -30,7 +31,7 @@
         ];
 
         shellHook = ''
-          echo "cooking-app dev shell: $(go version), node $(node --version), ffmpeg, jq, kubectl, helm, az"
+          echo "cooking-app dev shell: Rust (rustup), node $(node --version), ffmpeg, jq, kubectl, helm, az"
           echo "Podman is a distro-level prerequisite (e.g. 'apt install podman' on WSL) and is not provided by this flake."
         '';
       };

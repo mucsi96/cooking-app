@@ -1,5 +1,3 @@
-/bin/
-/storage/
-/.env
-# Untracked build output left by the previous backend.
 /target/
+/.env
+/storage/

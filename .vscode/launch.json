@@ -30,11 +30,12 @@
       "type": "node"
     },
     {
-      "type": "go",
+      "type": "lldb",
       "name": "Start server",
       "request": "launch",
       "cwd": "${workspaceFolder}/server",
-      "program": "${workspaceFolder}/server/cmd/server",
+      "args": ["start", "--no-banner"],
+      "cargo": { "args": ["build", "--bin", "cooking-server", "--manifest-path", "${workspaceFolder}/server/Cargo.toml"] },
       "envFile": "${workspaceFolder}/server/.env",
       "env": {
         "AZURE_KEYVAULT_ENDPOINT": "https://p06-cooking.vault.azure.net"

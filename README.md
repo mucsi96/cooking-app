@@ -16,26 +16,25 @@ tested static client artifacts deployed through Helm, Traefik and Azure Storage.
 | --- | --- |
 | Client | React 19, Vite, strict TypeScript, TanStack Query and Zod |
 | UI | `@mucsi96/react-ui`, CSS Modules, accessible Hungarian dark theme |
-| API | Go 1.26, Gin, explicit dependency injection |
-| Database | PostgreSQL 17, GORM with the pgx-backed PostgreSQL driver, Goose SQL migrations |
-| Authentication | API JWT validation with `go-oidc`; stock oauth2-proxy ForwardAuth browser sessions |
+| API | Rust 1.99, Loco lifecycle/CLI, Axum controllers |
+| Database | PostgreSQL 17, SeaORM and versioned SeaORM migrations |
+| Authentication | RS256 JWT validation with rotating OIDC keys; stock oauth2-proxy ForwardAuth browser sessions |
 | Secrets | Official Azure Identity and Key Vault SDKs |
-| AI | Official Anthropic and OpenAI Go SDKs |
+| AI | Typed Anthropic/OpenAI HTTP clients with reqwest |
 | Images | Bounded PostgreSQL-backed worker pool, ffmpeg, persistent WebP files |
 | Tests | Playwright desktop/mobile E2E against the full application stack |
-| Deployment | Go/Alpine API image, Azure static client, Helm, Traefik Gateway API |
+| Deployment | Native Rust/Debian API image with ffmpeg, Azure static client, Helm, Traefik Gateway API |
 
 The backend is organized by responsibility:
 
 ```text
-server/cmd/server/          startup, dependency wiring, graceful shutdown
-server/internal/config/    environment and Key Vault configuration
-server/internal/database/  GORM, shared SQL pool and embedded SQL migrations
-server/internal/recipe/    domain types, persistence, URL import, image workers
-server/internal/ai/        Anthropic/OpenAI extraction and OpenAI image generation
-server/internal/models/    model catalog and persistent model settings
-server/internal/media/     photo normalization and atomic WebP storage
-server/internal/httpapi/   Gin routes, bearer authentication, health probes
+server/src/app.rs          Loco lifecycle, listeners, graceful shutdown
+server/src/settings.rs     runtime environment and Key Vault configuration
+server/src/controllers.rs typed API controllers
+server/src/middleware/    bearer authentication and strict mutation Origin checks
+server/src/models/        domain types, SeaORM persistence and model settings
+server/src/services/      typed AI clients, URL import, media and durable workers
+server/migration/         versioned, non-destructive SeaORM migrations
 ```
 
 ## Features and API
@@ -129,20 +128,18 @@ nullable ingredient amounts/units and a fixed Hungarian category enum. Markdown
 fences, prose, malformed JSON, refusals and truncated responses are rejected.
 Domain validation enforces numeric bounds and nonempty recipe content before persistence.
 
-### GORM persistence conventions
+### SeaORM persistence conventions
 
 - Persistence records map explicitly to the existing `cooking` tables and UUID /
   composite primary keys, independently of API and domain models.
-- Every operation propagates its context through `WithContext`. Related writes
-  use transaction callbacks, with explicit batched inserts for ordered children.
-- Recipe details preload ingredients and steps in position order. List queries
+- Related writes use explicit transactions; dropped transactions roll back.
+- Recipe details load ingredients and steps in position order. List queries
   select only their response columns and do not load associations.
-- Updates target explicit columns; maps are used where null/zero values must be
-  written. Record-not-found errors are mapped to domain errors, and conditional
-  writes check affected rows. There are no implicit `Save` upserts or soft deletes.
-- GORM and Goose share one bounded `database/sql` pool through pgx. SQL logging
-  omits parameter values. Goose remains the only schema authority; startup does
-  not call `AutoMigrate`.
+- Updates target explicit columns including null/zero values. Missing records map
+  to domain errors, and conditional writes check affected rows. There are no soft deletes.
+- SeaORM owns one bounded PostgreSQL pool. Parameterized SQL handles projections
+  and queue locking; query-value logging is disabled. Versioned migrations are
+  the only schema authority; startup never recreates or truncates tables.
 
 The queue deliberately holds a row lock while generating an image so process
 interruption rolls the job back to pending. Its three workers and five-minute
@@ -158,7 +155,8 @@ nix develop
 scripts/install_dependencies.sh
 ```
 
-The shell supplies Go, gopls, Delve, Node, ffmpeg, jq, kubectl, Helm and Azure CLI.
+The shell supplies rustup, Node, ffmpeg, jq, kubectl, Helm and Azure CLI.
+`server/rust-toolchain.toml` pins Rust, rustfmt and Clippy.
 
 ### Full test stack
 
@@ -180,12 +178,11 @@ cd server
 set -a
 source .env
 set +a
-go run ./cmd/server
+cargo run -- start
 ```
 
 In another terminal, run `npm start` from `client/`. The dev server on port 4260
-proxies `/api` to port 8063. VS Code includes a Go debugger configuration using
-`server/.env`. That file is ignored by Git.
+proxies `/api` to port 8063. `server/.env` is ignored by Git.
 
 The client requires Node 24 or newer. Routes are lazy React Router pages; TanStack
 Query owns server state and cancels reads on navigation. Zod validates recipe,
@@ -203,8 +200,9 @@ routes, database migrations, image storage or gateway authentication.
 
 ```bash
 # From server/
-go vet ./...
-go build ./...
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo build --locked
 
 # From client/
 npm run lint
@@ -216,7 +214,7 @@ npm test
 ```
 
 Following skeleton-app, Playwright E2E tests are the sole automated test suite.
-They exercise the React client and Go API against PostgreSQL, a mock OIDC
+They exercise the React client and Rust API against PostgreSQL, a mock OIDC
 provider and mock AI services in the test pod. CI builds the container images
 and the static client artifact, and runs this suite before publishing.
 For an alternate test stack, Playwright
@@ -224,7 +222,7 @@ accepts `TEST_BASE_URL`, `TEST_DB_PORT`, `TEST_ANTHROPIC_URL` and `TEST_OPENAI_U
 
 ## Runtime configuration
 
-One Go binary and one container image serve all environments. Configuration is
+One Rust binary and one container image serve all environments. Configuration is
 read at startup. Explicit environment variables override Key Vault values.
 
 | Environment variable | Key Vault secret / default |
@@ -241,18 +239,21 @@ read at startup. Explicit environment variables override Key Vault values.
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-6` |
 | `OPENAI_API_KEY` | `openai-api-key` |
 | `OPENAI_BASE_URL` | `https://api.openai.com` (origin, without `/v1`) |
-| `OPENAI_ALLOW_LOCAL_HTTP` | `false`; set to `true` only for local HTTP mocks. The SDK restricts this opt-in to localhost or literal loopback addresses and bypasses proxies for those requests. The E2E pod enables it explicitly. |
+| `OPENAI_ALLOW_LOCAL_HTTP` | `false`; opt in to localhost/loopback HTTP mocks. The E2E pod enables it explicitly. |
 | `OPENAI_IMAGE_MODEL` | `gpt-image-2.5-sunburst` |
 | `STORAGE_DIRECTORY` | `./storage`; mount persistent storage in production |
 | `SERVER_PORT` | 8063 locally, 8080 in the image |
 | `MANAGEMENT_PORT` | 8162 locally, 8081 in the image; shared chart sets 8082 |
 
-Azure credentials use `DefaultAzureCredential`, supporting local Azure CLI login
-and Kubernetes workload identity. Configuration failures abort startup.
+Azure credentials use `WorkloadIdentityCredential` when a federated token file is
+configured, and `AzureCliCredential` for local `az login`. Explicit `.env` values
+also work locally. Kubernetes retains its federated service account.
+Configuration failures abort startup.
 
 Health checks live on the management listener:
 `/health/liveness` and `/health/readiness`. Readiness checks
-PostgreSQL. Logs are structured JSON via `log/slog`.
+PostgreSQL. Logs are structured JSON via tracing. The container runs the native
+Loco `start --no-banner` command; `--healthcheck` probes readiness without curl.
 
 ## Existing installations and deployment
 
@@ -274,9 +275,10 @@ and Origin checks stay enabled. Test pods run the app, database, mock OIDC/AI
 services and routing, without oauth2-proxy or Redis. Playwright targets `http://localhost:8160`.
 
 The rewrite retains the `cooking` schema, UUIDs, table/column names and
-`images/{id}.webp` storage layout. The first Goose migration adopts existing
-tables without replacing records. Liquibase's bookkeeping tables are left
-intact; subsequent migrations use Goose's own version table. Existing JDBC
+`images/{id}.webp` storage layout. The SeaORM baseline adopts existing
+tables and missing additive columns without replacing records. Liquibase and
+Goose bookkeeping tables are left intact; subsequent migrations use SeaORM's
+version table. Historical Goose SQL remains archived and is not executed. Existing JDBC
 `db-url` secrets are accepted, including `currentSchema` parameters.
 
 Build the server with `podman build -t cooking-app-server server`; no profile
@@ -287,8 +289,8 @@ release name, workload identity service account and `cooking-pvc` volume.
 The GitHub pipeline runs Playwright E2E tests, publishes numbered GHCR images and
 creates component releases when source changes, tagging the built commit using
 `target_commitish`. `scripts/deploy.sh` uses
-the shared `mucsi96/go-app` and `mucsi96/static-client-app` charts. The container's
-`GOMEMLIMIT=256MiB` leaves room within the 768 MiB pod limit for ffmpeg processes.
+the shared `mucsi96/go-app` and `mucsi96/static-client-app` charts. The existing
+768 MiB pod limit accommodates the native server and ffmpeg processes.
 
 The Go chart lives in
 [`k8s-helm-charts/charts/go_app`](https://github.com/mucsi96/k8s-helm-charts/tree/main/charts/go_app)

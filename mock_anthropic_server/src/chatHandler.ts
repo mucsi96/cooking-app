@@ -20,7 +20,7 @@ export class ChatHandler {
             .join('\n');
     const content = getMessageContent(userMessage);
 
-    // Structured recipe extraction uses the same JSON contract as the Go client.
+    // Structured recipe extraction uses the same JSON contract as the API client.
     if (system.includes('recipe extraction assistant')) {
       if (content.includes('FENCED_JSON')) {
         return createClaudeResponse('```json\n' + JSON.stringify(GOULASH) + '\n```');

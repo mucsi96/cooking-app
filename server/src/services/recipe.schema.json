@@ -1,0 +1,14 @@
+{
+  "type": "object", "additionalProperties": false,
+  "required": ["title", "description", "category", "servings", "ingredients", "steps"],
+  "properties": {
+    "title": {"type": "string"}, "description": {"type": "string"},
+    "category": {"type": "string", "enum": ["Reggeli", "Leves", "Főétel", "Köret", "Saláta", "Desszert", "Sütemény", "Ital", "Egyéb"]},
+    "servings": {"type": "integer"},
+    "ingredients": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false, "required": ["name", "amount", "unit"],
+      "properties": {"name": {"type": "string"}, "amount": {"type": ["number", "null"]}, "unit": {"type": ["string", "null"]}}
+    }},
+    "steps": {"type": "array", "items": {"type": "string"}}
+  }
+}
