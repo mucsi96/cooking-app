@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, BarLoader, Button } from '@mucsi96/react-ui';
+import { Badge, LoadingArea, Button } from '@mucsi96/react-ui';
 import { recipeQuery, type Recipe } from '../api';
 import { RecipeImage } from '../components/RecipeImage';
 import { LoadError } from '../components/LoadError';
@@ -16,7 +16,7 @@ export default function RecipeDetail() {
   if (!id) throw new Error('Missing recipe ID');
   const recipe = useQuery(recipeQuery(id));
   if (recipe.isError) return <LoadError message="A recept betöltése nem sikerült." retry={() => { void recipe.refetch(); }} />;
-  if (recipe.isPending) return <BarLoader label="Recept betöltése" />;
+  if (recipe.isPending) return <LoadingArea label="Recept betöltése" fill />;
   return <RecipeArticle key={id} recipe={recipe.data} />;
 }
 

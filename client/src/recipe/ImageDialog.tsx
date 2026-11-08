@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarLoader, Button } from '@mucsi96/react-ui';
+import { LoadingArea, Button } from '@mucsi96/react-ui';
 import { ApiError, candidatesSchema, imagesQuery, mutate, photoBody, recipeQuery, recipesQuery, type Recipe } from '../api';
 import { PhotoPicker } from '../components/PhotoPicker';
 import { RecipeImage } from '../components/RecipeImage';
@@ -29,10 +29,10 @@ export function ImageDialog({ recipe, onClose }: { recipe: Recipe; onClose: () =
     <PhotoPicker kind="food" file={photo} onChange={file => { setPhoto(file); upload.reset(); }} disabled={busy} />
     {upload.isError && <p role="alert">{upload.error instanceof ApiError ? upload.error.message : 'A fénykép feltöltése nem sikerült. Próbáld újra.'}</p>}
     {select.isError && <p role="alert">A borítókép kiválasztása nem sikerült. Próbáld újra.</p>}
-    {candidates.isError ? <LoadError message="A képek betöltése nem sikerült." retry={() => { void candidates.refetch(); }} /> : candidates.isPending ? <BarLoader label="Képek betöltése" /> :
+    {candidates.isError ? <LoadError message="A képek betöltése nem sikerült." retry={() => { void candidates.refetch(); }} /> : candidates.isPending ? <LoadingArea label="Képek betöltése" /> :
       <div className={styles.candidates}>{candidates.data.map(candidate => candidate.status === 'COMPLETED'
         ? <button type="button" key={candidate.id} className={styles.candidate} aria-label={`Kép kiválasztása ${candidate.id}`} aria-pressed={candidate.id === recipe.imageId} disabled={busy} onClick={() => select.mutate(candidate.id)}><RecipeImage imageId={candidate.id} alt="Generált képjelölt" /></button>
-        : candidate.status === 'PENDING' ? <div key={candidate.id} className={styles.pending} role="status" aria-label="Kép generálása folyamatban"><BarLoader label="Kép generálása" /></div> : <p key={candidate.id} role="status">A kép elkészítése nem sikerült.</p>)}
+        : candidate.status === 'PENDING' ? <LoadingArea key={candidate.id} className={styles.pending} label="Kép generálása folyamatban" /> : <p key={candidate.id} role="status">A kép elkészítése nem sikerült.</p>)}
         {!candidates.data.length && <p>Még nincs választható kép. Adj hozzá egy fotót az ételről.</p>}
       </div>}
     {upload.isPending && <p role="status">Fénykép feltöltése…</p>}
