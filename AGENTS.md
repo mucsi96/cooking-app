@@ -64,7 +64,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   keyboard navigation, focus management and responsive layouts.
 - Colocate component styles in CSS Modules (`*.module.css`). Keep only theme tokens,
   typography defaults and resets in the global stylesheet.
-- Provide skeleton loading states and actionable Hungarian error and retry states.
+- Use shared LoadingArea loaders centered in their page or section, with Hungarian accessible labels and actionable Hungarian error and retry states.
 - Keep skeleton-app's build-time configuration bootstrap and read-only userinfo
   profile query. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
 - Keep API requests same-origin and preserve the backend's strict mutation Origin

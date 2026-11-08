@@ -1,7 +1,7 @@
 import { Component, lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AppHeader, AppHeaderActions, AppMain, BarLoader, Button, Menu, MenuItem, MenuPopover, MenuTrigger } from '@mucsi96/react-ui';
+import { AppHeader, AppHeaderActions, AppMain, LoadingArea, Button, Menu, MenuItem, MenuPopover, MenuTrigger } from '@mucsi96/react-ui';
 import { profileQuery } from './api';
 import styles from './App.module.css';
 
@@ -28,7 +28,7 @@ export function App() {
     document.title = location.pathname === '/' ? 'Receptek' : location.pathname === '/importalas' ? 'Recept importálása' : location.pathname === '/beallitasok' ? 'Beállítások' : 'Recept';
     window.scrollTo(0, 0);
   }, [location.pathname]);
-  return <>
+  return <div className={styles.layout}>
     <AppHeader className={styles.header}>
         <span className={styles.brand}>Szakácskönyv</span>
       <AppHeaderActions>
@@ -51,7 +51,7 @@ export function App() {
     </AppHeader>
     <AppMain className={styles.main}>
       <PageBoundary key={location.pathname}>
-        <Suspense fallback={<BarLoader label="Oldal betöltése" />}>
+        <Suspense fallback={<LoadingArea label="Oldal betöltése" fill />}>
           <Routes>
             <Route path="/" element={<Recipes />} />
             <Route path="/recept/:id" element={<RecipeDetail />} />
@@ -62,5 +62,5 @@ export function App() {
         </Suspense>
       </PageBoundary>
     </AppMain>
-  </>;
+  </div>;
 }

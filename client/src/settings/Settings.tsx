@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BarLoader, Button, Card, Select } from '@mucsi96/react-ui';
+import { LoadingArea, Button, Card, Select } from '@mucsi96/react-ui';
 import { catalogQuery, mutate, settingsQuery, settingsSchema, type Catalog, type Settings as ModelSettings } from '../api';
 import { NumberField } from '../components/Fields';
 import { LoadError } from '../components/LoadError';
@@ -12,7 +12,7 @@ export default function Settings() {
   const settings = useQuery(settingsQuery);
   return <div className={styles.page}><Link to="/">Vissza a receptekhez</Link><h1>Beállítások</h1>
     {catalog.isError || settings.isError ? <LoadError message="A modellbeállítások betöltése nem sikerült." retry={() => { void catalog.refetch(); void settings.refetch(); }} />
-      : catalog.isPending || settings.isPending ? <BarLoader label="Modellbeállítások betöltése" /> : <SettingsForm catalog={catalog.data} initial={settings.data} />}
+      : catalog.isPending || settings.isPending ? <LoadingArea label="Modellbeállítások betöltése" /> : <SettingsForm catalog={catalog.data} initial={settings.data} />}
   </div>;
 }
 
