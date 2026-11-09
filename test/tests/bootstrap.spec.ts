@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures';
 import { getRecipes } from '../utils';
 
-test('boots a deep link from build-time configuration without an environment request', async ({ page }) => {
+test('boots a deep link from inline configuration without an environment request', async ({ page }) => {
   const environmentRequests: string[] = [];
   page.on('request', request => {
     if (request.url().includes('/api/environment')) environmentRequests.push(request.url());

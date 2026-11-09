@@ -1,6 +1,0 @@
-.actions { display: flex; gap: 1rem; flex-wrap: wrap; }
-.actions button { min-height: 44px; }
-.file { display: none; }
-.preview { margin-block: 1rem; }
-.preview img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 12px; }
-.preview p { overflow-wrap: anywhere; }

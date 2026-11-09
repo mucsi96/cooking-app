@@ -1,8 +1,0 @@
-[package]
-name = "migration"
-version = "0.1.0"
-edition = "2024"
-publish = false
-
-[dependencies]
-sea-orm-migration = { version = "2", default-features = false, features = ["runtime-tokio-rustls", "sqlx-postgres"] }

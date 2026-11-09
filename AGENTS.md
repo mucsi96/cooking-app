@@ -16,70 +16,72 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 
 - Prefer failing fast to silent fallbacks.
 - Use immutable values and functional transformations where appropriate.
-- All user-facing text is Hungarian; preserve the dark theme and accessible controls.
+- All user-facing text is Hungarian; the UI uses the Material dark theme.
 - Keep the architecture aligned with [skeleton-app](https://github.com/mucsi96/skeleton-app):
-  React/Vite/TypeScript SPA, build-time Faro configuration, gateway Entra sessions, PostgreSQL, mocked AI,
+  Angular SPA, build-time Faro configuration, gateway Entra sessions, PostgreSQL, mocked AI,
   Playwright, Podman and versioned Helm deployments.
-- Frontend migration [#42](https://github.com/mucsi96/cooking-app/issues/42) is authorized.
-  Replace the existing Angular client with idiomatic React, preserving business features,
-  routes, API contracts, accessibility and user-visible behavior. Update dependencies,
-  build/deployment tooling and documentation, and remove obsolete Angular code and
-  migration-only scaffolding. The React conventions below describe the target stack.
-- The Rust/Loco backend migration is tracked in
-  [#41](https://github.com/mucsi96/cooking-app/issues/41). Preserve the existing
-  frontend, API, database and deployment contracts.
 
-## Rust / Loco
+## Go
 
-- Follow native Loco lifecycle/CLI hooks, thin Axum controllers, typed Serde
-  payloads/settings, domain services/errors and structured tracing.
-- Use SeaORM's bounded PostgreSQL pool, schema-qualified persistence models and
-  parameterized SQL for domain projections and row-locking queue operations.
-- Keep persistence records separate from API models. Preserve UUID/composite keys,
-  explicit null updates and position ordering; check affected rows on conditional writes.
-- SeaORM migrations under `server/migration/` are the schema authority. Never
-  change an applied migration, reset existing data or enable destructive startup flags.
-  Historical Goose SQL under `server/internal/database/migrations/` is archival only.
-- Recipe writes and photo job batches are atomic. Use only the transaction handle
-  inside transactions. Keep ordinary transactions short.
-- The image queue uses three workers and `FOR UPDATE SKIP LOCKED`. Dropped
-  transactions return interrupted jobs to pending; terminal errors become `FAILED`.
-- Bound external calls, uploads and subprocesses. Kill subprocesses on cancellation,
-  clean up temporary files and write images atomically. Never log keys or photo bytes.
-- Use typed reqwest clients for Anthropic/OpenAI, following skeleton-app (neither
-  provider has an official Rust SDK). Use official Azure Identity/Key Vault SDKs.
-- Run rustfmt, Clippy with warnings denied, and a locked build. Playwright is the
-  sole behavioral test suite; do not add Rust unit/integration tests.
+- Use idiomatic Go: small packages, explicit constructors/dependencies, ordinary
+  structs, context propagation, wrapped errors and `gofmt`.
+- Do not recreate an annotation-based dependency-injection or ORM framework.
+- HTTP routing and middleware use Gin. Persistence uses GORM's PostgreSQL driver
+  over pgx and a shared `database/sql` connection pool.
+- Keep persistence records separate from API models, with explicit schema-qualified
+  table names and primary keys. Do not embed `gorm.Model` into legacy tables.
+- Start queries with `WithContext(ctx)`; never cache mutable query chains. Use
+  parameter placeholders for values and fixed, application-owned ordering/column names.
+- Use transaction callbacks and only the provided transaction handle inside them.
+  Preload ordered associations for details; project only needed columns for lists.
+- Use targeted updates and explicit maps for zero/null values, check `RowsAffected`
+  where meaningful, and translate `gorm.ErrRecordNotFound` into domain errors.
+- Do not use `Save`, global updates, automatic association upserts or `AutoMigrate`.
+  Goose SQL migrations are the only schema authority. Keep query parameters out of logs.
+- Keep transactions around related writes; recipe content creation and photo-based
+  image job batches are atomic. Always close rows, response bodies, files and subprocess resources.
+- Use `log/slog` structured logging. Do not log credentials or raw recipe photos.
+- Interfaces belong with their consumers and should describe only the operations
+  they need. Use a fixed worker pool rather than unbounded goroutines.
+- New schema changes are versioned SQL files under
+  `server/internal/database/migrations/`; never change an applied migration.
+- The image queue uses `FOR UPDATE SKIP LOCKED`. Rollback returns interrupted
+  work to the pending queue. Terminal errors become `FAILED`.
+- Use the official Anthropic, OpenAI, Azure Identity and Key Vault SDKs.
 
-## TypeScript / React
+## TypeScript / Angular
 
 - Use `const`, readonly models, object/array spreads and map/filter/reduce.
 - Prefer string literal unions over enums.
-- Use strict TypeScript, function components and hooks with coherent component boundaries.
-  Follow native React conventions rather than recreating Angular abstractions.
-- Use TanStack Query for server state and Zod validation at API boundaries. Propagate
-  cancellation to fetch requests and invalidate affected queries after mutations.
-- Use `@mucsi96/react-ui` components and their documented APIs. Check the installed
-  package documentation when changing controls or styles. Preserve accessible names,
-  keyboard navigation, focus management and responsive layouts.
-- Colocate component styles in CSS Modules (`*.module.css`). Keep only theme tokens,
-  typography defaults and resets in the global stylesheet.
-- Use shared LoadingArea loaders centered in their page or section, with Hungarian accessible labels and actionable Hungarian error and retry states.
-- Keep skeleton-app's build-time configuration bootstrap and read-only userinfo
-  profile query. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
-- Keep API requests same-origin and preserve the backend's strict mutation Origin
-  checks; do not copy Skeleton-specific CSRF or business contracts into Cooking.
+- Use standalone components, signals, signal inputs and HTTP resources for reads.
+- Use Angular Material components and skeleton loaders for loading states.
+- Follow `@mucsi96/angular-material-theme`'s documented button-color API: use
+  `bt-color="primary|success|warn|error"` on `mat-flat-button`, `mat-raised-button`,
+  `mat-fab` (including extended FABs), and `mat-mini-fab`, including anchor buttons.
+  Use `[attr.bt-color]` for dynamic tones; no directive import is needed.
+- Solid buttons default to primary. Use `error` for destructive actions, `warn`
+  for caution, and `success` for positive outcomes. Material's legacy
+  `color="warn"` means error/red, not the theme's orange `bt-color="warn"`.
+- For an arbitrary solid-button color, set only `--bt-button-bg` without
+  `bt-color`. Let the theme derive label contrast and hover colors. Do not override
+  Material container/label/state-layer tokens, `--mat-sys-primary`, or button
+  `background`, `color`, and `:hover` separately. Retain the intended button variant.
+- The `bt-color` API does not cover text, outlined, icon or menu buttons. Use their
+  documented Material APIs instead. Check the installed theme README when changing styles.
+- Keep skeleton-app's build-config bootstrap and read-only userinfo
+  profile resource. Do not add frontend auth services/interceptors/guards or sign-in/out UI.
 - Revoke object URLs on cleanup and cancel reads when the selected resource changes.
 
 ## Architecture
 
-- `client/`: React/Vite SPA with shared React UI, authenticated gateway documents and direct public Blob assets.
-- `server/src/app.rs`: Loco lifecycle, listeners, workers and graceful shutdown.
-- `server/src/settings.rs`: runtime environment and Azure Key Vault configuration.
-- `server/src/controllers.rs`, `middleware/`: typed API routes and JWT/Origin checks.
-- `server/src/models/`: SeaORM persistence and domain models.
-- `server/src/services/`: AI clients, public page imports, ffmpeg storage and workers.
-- `server/migration/`: non-destructive SeaORM migrations.
+- `client/`: Angular/Material SPA with authenticated gateway documents and direct public Blob assets.
+- `server/cmd/server/`: dependency wiring, startup and graceful shutdown.
+- `server/internal/config/`: environment variables and Azure Key Vault.
+- `server/internal/database/`: GORM, the shared pgx-backed SQL pool and embedded Goose migrations.
+- `server/internal/recipe/`: domain model, SQL store, public page imports, workers.
+- `server/internal/ai/`: recipe extraction and image generation SDK adapters.
+- `server/internal/media/`: ffmpeg photo normalization and atomic WebP storage.
+- `server/internal/httpapi/`: Gin routes, role/scope checks and health probes.
 - Production API chart: `charts/go_app/` in the shared `k8s-helm-charts` project.
 - `mock_anthropic_server/`, `mock_openai_server/`: Express mocks of provider APIs.
 - `test/`: Playwright desktop/mobile E2E tests.
@@ -100,7 +102,7 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
   on terminal status; legacy text-only jobs must still finish. Users can choose only
   completed images belonging to the recipe.
 - Preserve API JSON field names and the existing `cooking` schema. Existing
-  installations are adopted by SeaORM without dropping data or image files.
+  installations are adopted by Goose without dropping data or image files.
 
 Protected routes require `api-access` scope plus `readRecipes` or `createRecipe`.
 Authentication stays enabled during tests, using a mock OIDC provider.
@@ -110,7 +112,7 @@ mutation Origin checks active for proxy-injected bearer requests.
 
 ## Configuration and deployment
 
-- One Rust binary/image works in every environment; configuration is runtime-only.
+- One Go binary/image works in every environment; configuration is runtime-only.
 - Explicit environment variables override Key Vault values. See `server/.env.example`
   and README for variables and secrets. Never commit `server/.env`.
 - Health endpoints are `/health/liveness` and
@@ -142,20 +144,17 @@ mutation Origin checks active for proxy-injected bearer requests.
 
 ## Commands and tests
 
-Enter `nix develop` for Rust, Node, ffmpeg, Helm and Azure CLI. Install Podman through
+Enter `nix develop` for Go, Node, ffmpeg, Helm and Azure CLI. Install Podman through
 the operating system. `scripts/install_dependencies.sh` installs project dependencies.
 
 ```bash
 # From server/
-cargo run -- start
-cargo fmt --all --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo build --locked
+go run ./cmd/server
+go vet ./...
+go build ./...
 
 # From client/
 npm start
-npm run lint
-npm run typecheck
 npm run build
 
 # From the repository root
@@ -171,10 +170,7 @@ npx playwright test --ui
 
 - Use Playwright E2E tests as the sole automated test suite, following skeleton-app.
   Exercise the running application with PostgreSQL and mock OIDC/AI services.
-  Extend coverage for affected user journeys during the frontend migration. Do not
-  add React unit/component tests, Go or Rust unit/integration tests, or a `go test` CI job.
-- The migrated client must expose lint, type-check and production-build scripts and
-  run those checks in CI.
+  Do not add Go unit/integration tests or a `go test` CI job.
 - Playwright tests use user-facing roles/labels/text, not implementation selectors.
 - Mock gateway identity/profile data in app fixtures; keep backend JWT/role/Origin
   checks enabled. Do not run oauth2-proxy/Redis or duplicate platform session-flow tests.

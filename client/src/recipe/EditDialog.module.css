@@ -1,7 +1,0 @@
-.fields { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 1rem; }
-.fields h3 { margin: 1rem 0 0; }
-.item { display: grid; gap: 1rem; border: 1px solid var(--bt-outline); border-radius: 12px; padding: 1rem; min-width: 0; }
-.row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.fields button { justify-self: start; }
-.actions { display: flex; justify-content: end; gap: .5rem; margin-top: 1rem; }
-@media (max-width: 599px) { .row { grid-template-columns: minmax(0, 1fr); } }

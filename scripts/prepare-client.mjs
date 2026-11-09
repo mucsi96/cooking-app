@@ -2,7 +2,7 @@ import { cp, lstat, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// Keep this static asset preparation contract aligned with skeleton-app.
+// Keep this Angular preparation contract aligned with skeleton-app.
 export async function prepareClient(directory, destination, assetBaseUrl, appOrigin) {
   const root = resolve(directory);
   const index = await readFile(join(root, 'index.html'), 'utf8');

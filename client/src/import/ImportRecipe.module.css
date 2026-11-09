@@ -1,6 +1,0 @@
-.page { max-width: 760px; margin: auto; padding-bottom: 2rem; }
-.page section { display: grid; gap: 1rem; }
-.page section > button { justify-self: start; }
-.page header { margin-bottom: 2rem; }
-.page p { line-height: 1.6; }
-.divider { text-align: center; color: var(--bt-text-muted); margin: 2rem 0; }
