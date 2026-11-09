@@ -1,3 +1,5 @@
-target
-.env
-storage
+*
+!go.mod
+!go.sum
+!cmd/**
+!internal/**

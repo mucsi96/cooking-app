@@ -1,4 +1,0 @@
-.field { display: grid; gap: .5rem; min-width: 0; }
-.field input, .field textarea { width: 100%; min-width: 0; padding: .85rem; border: 1px solid var(--bt-outline); border-radius: 8px; color: var(--bt-text-default); background: var(--bt-surface-1); }
-.field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--bt-primary); outline-offset: 2px; }
-.field textarea { resize: none; overflow: hidden; }

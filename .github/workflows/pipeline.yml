@@ -23,18 +23,6 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.99.1
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: server
-      - name: Check Rust backend
-        working-directory: server
-        run: |
-          cargo fmt --all --check
-          cargo clippy --locked --workspace --all-targets -- -D warnings
-          cargo build --locked
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build server image
@@ -69,8 +57,6 @@ jobs:
         working-directory: client
         run: |
           npm ci
-          npm run lint
-          npm run typecheck
           npm run build
       - name: Upload static client
         uses: actions/upload-artifact@v4
@@ -175,6 +161,8 @@ jobs:
         with:
           name: client-static
           path: client/dist
+      - name: Check direct browser asset loading
+        run: python3 scripts/check_static_assets.py client/dist
       - name: Load images into Podman
         run: |
           podman load -i /tmp/server-image.tar

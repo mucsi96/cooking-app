@@ -40,19 +40,19 @@ test('persists model settings and uses selected OpenAI data and image models', a
   await page.goto('/');
   await page.getByRole('button', { name: 'Felhasználói menü' }).click();
   await page.getByRole('menuitem', { name: 'Beállítások' }).click();
-  await page.getByRole('button', { name: /Recept felismerése$/ }).click();
+  await page.getByRole('combobox', { name: 'Recept felismerése', exact: true }).click();
   for (const id of ['gpt-6-astra', 'gpt-6-sol', 'gpt-5.5', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
     await expect(page.getByRole('option', { name: id, exact: true })).toBeAttached();
   }
   await page.getByRole('option', { name: 'gpt-6-astra', exact: true }).click();
-  await page.getByRole('button', { name: /Képleírás készítése$/ }).click();
+  await page.getByRole('combobox', { name: 'Képleírás készítése', exact: true }).click();
   await page.getByRole('option', { name: 'gpt-6-sol', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'gpt-image-2.5-sunburst (medium) képek száma', exact: true }).fill('0');
   await page.getByRole('spinbutton', { name: 'gpt-image-2.5-flare (xhigh) képek száma', exact: true }).fill('2');
   await page.getByRole('button', { name: 'Mentés', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('A beállításokat mentettük.');
   await page.reload();
-  await expect(page.getByRole('button', { name: /Recept felismerése$/ })).toContainText('gpt-6-astra');
+  await expect(page.getByRole('combobox', { name: 'Recept felismerése', exact: true })).toContainText('gpt-6-astra');
   await expect(page.getByRole('spinbutton', { name: 'gpt-image-2.5-flare (xhigh) képek száma', exact: true })).toHaveValue('2');
   await page.goto('/importalas');
   await page.getByLabel('Recept szövege').fill('Goulash');
@@ -113,7 +113,7 @@ test('validates image counts and explains when photo thumbnails are disabled', a
 
 test('model settings API rejects invalid values and requires authentication', async ({ page, request, apiHeaders }) => {
   await page.goto('/beallitasok');
-  await expect(page.getByRole('button', { name: /Recept felismerése$/ })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Recept felismerése', exact: true })).toBeVisible();
   const headers = { ...apiHeaders, Origin: new URL(page.url()).origin };
   const initial = await (await page.request.get('/api/settings/models', { headers })).json();
   for (const data of [
