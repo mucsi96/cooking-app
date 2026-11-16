@@ -10,7 +10,7 @@
     "express": "5.3.0"
   },
   "devDependencies": {
-    "@tsconfig/node-ts": "23.6.4",
+    "@tsconfig/node-ts": "23.6.5",
     "@types/express": "5.0.6",
     "@types/node": "26.6.6",
     "tsx": "4.23.15",
