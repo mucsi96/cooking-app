@@ -22,7 +22,7 @@ app.post('/v1/chat/completions', (req, res) => {
   const text = Array.isArray(user?.content) ? user.content.filter((part: any) => part.type === 'text').map((part: any) => part.text).join('\n') : user?.content ?? '';
   const content = text.includes('FENCED_JSON') ? '```json\n{}\n```'
     : text.includes('INVALID_JSON') ? '{"title":'
-    : system.includes('recipe extraction assistant')
+    : req.body.response_format.json_schema.name === 'recipe'
     ? JSON.stringify({ title: 'Gulyásleves', description: 'Magyar gulyásleves.', category: 'Leves', servings: 4,
       ingredients: [{ name: 'marhalábszár', amount: 500, unit: 'g' }], steps: ['Főzd puhára a húst.'] })
     : JSON.stringify({ description: 'A photorealistic food photograph of goulash in a rustic bowl, no text.' });
