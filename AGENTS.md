@@ -89,6 +89,10 @@ Skeleton sync: follow `.github/prompts/sync-skeleton.md` in a weekly scheduled t
 
 ## Features and contracts
 
+- AI task prompts use Persona, Task, Context and Format sections. Text tasks use
+  typed responses and provider-native JSON schemas with field descriptions, not
+  embedded JSON examples. Image tasks retain native image output.
+
 - Recipes are grouped by Hungarian category. Details rescale ingredient amounts
   when servings change and support printing.
 - Text, public HTTP(S) URLs and recipe photos can be imported. The selected data model extracts

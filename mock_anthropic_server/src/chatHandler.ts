@@ -21,7 +21,7 @@ export class ChatHandler {
     const content = getMessageContent(userMessage);
 
     // Structured recipe extraction uses the same JSON contract as the Go client.
-    if (system.includes('recipe extraction assistant')) {
+    if ('ingredients' in (request.output_config.format.schema.properties as Record<string, unknown>)) {
       if (content.includes('FENCED_JSON')) {
         return createClaudeResponse('```json\n' + JSON.stringify(GOULASH) + '\n```');
       }

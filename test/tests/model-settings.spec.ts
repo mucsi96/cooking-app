@@ -26,7 +26,7 @@ test(`requires structured recipe JSON from ${model}`, async ({ page }) => {
     expect(request.outputConfig).toMatchObject({ format: { type: 'json_schema', schema: { type: 'object', additionalProperties: false } } });
   }
   expect(requests).toContainEqual(expect.objectContaining({ outputConfig: { format: { type: 'json_schema', schema: {
-    type: 'object', additionalProperties: false, required: ['description'], properties: { description: { type: 'string' } },
+    type: 'object', additionalProperties: false, required: ['description'], properties: { description: { type: 'string', description: expect.any(String) } },
   } } } }));
   if (model.startsWith('claude')) {
     expect(requests).toContainEqual(expect.objectContaining({ outputConfig: { format: { type: 'json_schema', schema: expect.objectContaining({
@@ -82,7 +82,7 @@ test('persists model settings and uses selected OpenAI data and image models', a
   });
   expect(requests).toContainEqual({ operation: 'chat', model: 'gpt-6-sol', photo: true,
     responseFormat: { type: 'json_schema', json_schema: { name: 'image_description', strict: true, schema: {
-      type: 'object', additionalProperties: false, required: ['description'], properties: { description: { type: 'string' } },
+      type: 'object', additionalProperties: false, required: ['description'], properties: { description: { type: 'string', description: expect.any(String) } },
     } } },
   });
   expect(requests.filter((request: any) => request.operation === 'edit')).toEqual([
